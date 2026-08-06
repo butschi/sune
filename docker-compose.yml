@@ -1,0 +1,8 @@
+services:
+  sune:
+    build: .
+    image: sune:latest
+    container_name: sune
+    restart: unless-stopped
+    ports:
+      - "${SUNE_PORT:-8480}:80"

@@ -1,0 +1,452 @@
+class Component extends DCLogic {
+  state = {
+    ready:false, theme:'dark', wide:false, tab:'learn',
+    set:'oll', stFilter:-1, modal:null, play:null,
+    qcfg:{sets:{oll:true,pll:true,f2l:false},scope:'all',mode:'name',timed:false}, quiz:null,
+    tmode:'random', tcaseSet:'oll', tcase:null, scr:'', showPreview:false, inspection:false,
+    tstate:'idle', armed:false, t0:0, now:0, inspStart:0,
+    status:{}, pref:{}, qstats:{},
+    sessions:[{name:'Session 1', solves:[]}], cur:0
+  };
+  componentDidMount(){
+    this._mq=window.matchMedia('(min-width:900px)');
+    this._onMq=()=>this.setState({wide:this._mq.matches});
+    this._mq.addEventListener('change',this._onMq);
+    this.setState({wide:this._mq.matches});
+    this._kd=(e)=>this.onKey(e,true); this._ku=(e)=>this.onKey(e,false);
+    window.addEventListener('keydown',this._kd); window.addEventListener('keyup',this._ku);
+    this._boot=setInterval(()=>{ if(window.CUBE&&window.ALGS&&window.F2L){ clearInterval(this._boot); this.boot(); } },60);
+  }
+  componentWillUnmount(){
+    clearInterval(this._boot); this._mq.removeEventListener('change',this._onMq);
+    window.removeEventListener('keydown',this._kd); window.removeEventListener('keyup',this._ku);
+    clearInterval(this._run); clearInterval(this._insp); clearTimeout(this._hold); clearInterval(this._qt); clearTimeout(this._pt); clearTimeout(this._auto);
+  }
+  boot(){
+    const C=window.CUBE, A=window.ALGS;
+    const cat={};
+    cat.f2l=window.F2L.map(c=>({uid:'f2l'+c.n,set:'f2l',id:'F2L '+c.n,name:c.name,group:c.group,algs:c.algs,viz:'iso'}));
+    cat.oll=A.oll.map(o=>({uid:'oll'+o.n,set:'oll',id:'OLL '+o.n,name:o.name,group:o.group,algs:o.algs,ft:o.ft,viz:'oll'}));
+    cat.pll=A.pll.map(p=>({uid:'pll'+p.id,set:'pll',id:p.id+' perm',name:'',group:p.group,algs:p.algs,ft:p.ft,viz:'pll'}));
+    const byOll=n=>cat.oll[n-1], byPll=id=>cat.pll.find(p=>p.uid==='pll'+id);
+    cat.oll2=A.oll2.edges.map(e=>({uid:'eo'+e.id.replace(/\s/g,''),set:'oll2',id:e.id,name:e.name,group:'Edge orientation',algs:e.algs,hint:e.hint,viz:'eoll'}))
+      .concat(A.oll2.corners.map(byOll));
+    cat.pll2=A.pll2.corners.map(byPll).concat(A.pll2.edges.map(byPll));
+    this.cat=cat; this._svgs={};
+    let saved={}; try{ saved=JSON.parse(localStorage.getItem('sune-cfop-v1'))||{}; }catch(e){}
+    const st={ready:true};
+    ['theme','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
+    if(saved.sessions&&saved.sessions.length) st.sessions=saved.sessions;
+    if(saved.qcfg) st.qcfg=Object.assign({},this.state.qcfg,saved.qcfg);
+    st.cur=Math.min(st.cur||0,(st.sessions||this.state.sessions).length-1);
+    this.setState(st,()=>this.newScr());
+  }
+  persist(){
+    const s=this.state;
+    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg})); }catch(e){}
+  }
+  cube3d(state,anim){
+    const C=window.CUBE,S=32,kids=[];
+    const rotFor=n=>n[2]===1?'':(n[2]===-1?' rotateY(180deg)':(n[0]===1?' rotateY(90deg)':(n[0]===-1?' rotateY(-90deg)':(n[1]===1?' rotateX(90deg)':' rotateX(-90deg)'))));
+    const CS=2.08*S; // small enough that its corners never pierce the rotating sticker orbit (radius 1.5*S)
+    ['','rotateY(180deg)','rotateY(90deg)','rotateY(-90deg)','rotateX(90deg)','rotateX(-90deg)'].forEach((f,i)=>{
+      kids.push(React.createElement('div',{key:'c'+i,style:{position:'absolute',left:(-CS/2)+'px',top:(-CS/2)+'px',width:CS+'px',height:CS+'px',background:'#100d16',transform:f+' translateZ('+(CS/2)+'px)'}}));});
+    C.stickers.forEach((st,i)=>{
+      const p=st.p,n=st.n;
+      const t='translate3d('+((p[0]+0.5*n[0])*S)+'px,'+(-(p[1]+0.5*n[1])*S)+'px,'+((p[2]+0.5*n[2])*S)+'px)'+rotFor(n);
+      const sty={position:'absolute',left:(-S/2)+'px',top:(-S/2)+'px',width:S+'px',height:S+'px',boxSizing:'border-box',borderRadius:'5px',border:'2.5px solid #100d16',background:C.COL[state[i]],'--b':t,transform:'var(--b)'};
+      if(anim&&anim.sel(p)) sty.animation='sp'+anim.axis+(anim.deg>0?'p':'n')+Math.abs(anim.deg)+' '+(Math.abs(anim.deg)>90?'.5s':'.34s')+' cubic-bezier(.45,.05,.35,1) forwards';
+      kids.push(React.createElement('div',{key:'s'+i,style:sty}));});
+    return React.createElement('div',{style:{width:'230px',height:'214px',margin:'0 auto',perspective:'1100px',overflow:'visible'}},
+      React.createElement('div',{style:{position:'relative',width:'0',height:'0',margin:'104px auto 0',transformStyle:'preserve-3d',transform:'rotateX(-28deg) rotateY(-38deg)'}},kids));
+  }
+  playGo(dir){
+    const C=window.CUBE,p=this.state.play; if(!p||p.anim) return;
+    const tokens=C.parseAlg(p.alg);
+    if(dir>0&&p.step>=tokens.length) return;
+    if(dir<0&&p.step<=0) return;
+    const tok=dir>0?tokens[p.step]:C.invert(tokens[p.step-1]);
+    const plan=C.movePlan(tok);
+    if(!plan){ this.setState({play:{alg:p.alg,step:p.step+dir,anim:null}}); return; }
+    this.setState({play:{alg:p.alg,step:p.step,anim:plan}});
+    clearTimeout(this._pt);
+    this._pt=setTimeout(()=>{ const q=this.state.play;
+      if(q) this.setState({play:{alg:q.alg,step:q.step+dir,anim:null}}); },Math.abs(plan.deg)>90?520:360);
+  }
+  el(html,style){ return React.createElement('div',{style:style||{width:'100%'},dangerouslySetInnerHTML:{__html:html}}); }
+  svgFor(it){
+    if(this._svgs[it.uid]) return this._svgs[it.uid];
+    const C=window.CUBE, st=C.caseState(it.algs[0]);
+    const svg = it.viz==='iso'?C.svgIso(st):C.svgTop(st,it.viz);
+    return this._svgs[it.uid]=this.el(svg);
+  }
+  allItems(){ return this.cat.f2l.concat(this.cat.oll,this.cat.pll); }
+  find(uid){ return this.allItems().concat(this.cat.oll2).find(i=>i.uid===uid); }
+  stMeta(v){ return [
+    {label:'NEW',co:'var(--tx2)'},{label:'WANT',co:'var(--info)'},
+    {label:'LEARNING',co:'var(--warn)'},{label:'KNOWN',co:'var(--good)'}][v||0]; }
+  setStatus(uid,v){ const status=Object.assign({},this.state.status); status[uid]=v; this.setState({status},()=>this.persist()); }
+  lbl(it){ return it.name?it.id+' · '+it.name:it.id; }
+  chip(active){ return active?{bg:'var(--accsf)',bd:'var(--acc)',co:'var(--tx)'}:{bg:'var(--sf)',bd:'var(--ln)',co:'var(--tx2)'}; }
+  trigCo(t){ return {sexy:'var(--info)',invsexy:'var(--good)',sledge:'var(--warn)',hedge:'var(--acc)'}[t]; }
+  // ---------- timer ----------
+  aufs(){ return ['',' U',' U\'',' U2']; }
+  newScr(){
+    const C=window.CUBE; if(!C) return;
+    const s=this.state; let scr;
+    if(s.tmode==='case'){
+      const list=this.cat[s.tcaseSet];
+      const it=list.find(i=>i.uid===s.tcase)||list[0];
+      const alg=it.algs[(this.state.pref[it.uid]||0)]||it.algs[0];
+      scr=(C.invert(alg)+this.aufs()[(Math.random()*4)|0]).trim();
+      this.setState({scr,tcase:it.uid},()=>{});
+    } else { scr=C.scramble(this.props.scrambleLength??20); this.setState({scr}); }
+  }
+  scrSvgEl(){
+    const C=window.CUBE; if(!C||!this.state.scr) return null;
+    return this.el(C.svgNet(C.apply(C.solved(),this.state.scr)));
+  }
+  session(){ return this.state.sessions[this.state.cur]; }
+  beginHold(){
+    clearTimeout(this._hold);
+    this._hold=setTimeout(()=>this.setState({armed:true}),300);
+  }
+  padDown(e){
+    if(e&&e.button>0) return;
+    const s=this.state;
+    if(s.tstate==='run'){ this.finish(); this._justStopped=true; return; }
+    if(s.tstate==='idle'&&s.inspection){ this.startInspect(); return; }
+    this.beginHold();
+  }
+  padUp(){
+    const s=this.state;
+    if(this._justStopped){ this._justStopped=false; return; }
+    clearTimeout(this._hold);
+    if(s.armed){ this.startRun(); }
+    this.setState({armed:false});
+  }
+  padCancel(){ clearTimeout(this._hold); this.setState({armed:false}); }
+  noCtx(e){ e.preventDefault(); }
+  startInspect(){
+    this.setState({tstate:'inspect',inspStart:Date.now(),now:Date.now()});
+    this._insp=setInterval(()=>this.setState({now:Date.now()}),150);
+  }
+  startRun(){
+    clearInterval(this._insp);
+    const inspSec=this.state.tstate==='inspect'?(Date.now()-this.state.inspStart)/1000:0;
+    this._inspOver=Math.max(0,inspSec-15);
+    this.setState({tstate:'run',t0:Date.now(),now:Date.now(),armed:false});
+    this._run=setInterval(()=>this.setState({now:Date.now()}),33);
+  }
+  finish(){
+    clearInterval(this._run);
+    const ms=Date.now()-this.state.t0;
+    const pen=this._inspOver>2?'dnf':(this._inspOver>0?2:0);
+    const sessions=this.state.sessions.map((x,i)=>i===this.state.cur?{name:x.name,solves:x.solves.concat([{ms,pen,scr:this.state.scr,ts:Date.now()}])}:x);
+    this.setState({tstate:'idle',sessions},()=>{ this.persist(); this.newScr(); });
+  }
+  onKey(e,down){
+    if(this.state.tab!=='timer'||this.state.modal) return;
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='select'||tag==='textarea') return;
+    if(e.code!=='Space') return;
+    e.preventDefault();
+    if(down){ if(!e.repeat&&!this._spaceHeld){ this._spaceHeld=true; this.padDown(); } }
+    else { this._spaceHeld=false; this.padUp(); }
+  }
+  fmt(ms){
+    if(ms==null) return '—';
+    const cs=Math.round(ms/10), m=Math.floor(cs/6000);
+    const s=((cs%6000)/100).toFixed(2);
+    return m>0? m+':'+(s.length<5?'0':'')+s : s;
+  }
+  solveMs(sv){ return sv.pen==='dnf'?Infinity:sv.ms+(sv.pen===2?2000:0); }
+  aoN(solves,n){
+    if(solves.length<n) return null;
+    const last=solves.slice(-n).map(s=>this.solveMs(s)).sort((a,b)=>a-b);
+    const mid=last.slice(1,-1);
+    if(mid.some(v=>!isFinite(v))) return 'DNF';
+    return this.fmt(mid.reduce((a,b)=>a+b,0)/mid.length);
+  }
+  best(solves){ const v=solves.map(s=>this.solveMs(s)).filter(isFinite); return v.length?this.fmt(Math.min.apply(null,v)):null; }
+  mutSolve(idx,fn){
+    const sessions=this.state.sessions.map((x,i)=>{
+      if(i!==this.state.cur) return x;
+      const solves=x.solves.slice(); const r=fn(solves[idx],solves); return {name:x.name,solves:r||solves};
+    });
+    this.setState({sessions},()=>this.persist());
+  }
+  // ---------- quiz ----------
+  quizPool(){
+    const s=this.state, pools=[];
+    ['f2l','oll','pll'].forEach(k=>{ if(s.qcfg.sets[k]) pools.push.apply(pools,this.cat[k]); });
+    if(s.qcfg.scope==='learn') return pools.filter(i=>{const v=s.status[i.uid]||0; return v===1||v===2;});
+    if(s.qcfg.scope==='known') return pools.filter(i=>(s.status[i.uid]||0)===3);
+    return pools;
+  }
+  shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0, t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  startQuiz(){
+    const pool=this.quizPool(); if(pool.length<2) return;
+    clearInterval(this._qt);
+    const quiz={qnum:0,score:0,streak:0,missed:[],done:false};
+    this.setState({quiz},()=>this.nextQ());
+  }
+  nextQ(){
+    const s=this.state, pool=this.quizPool();
+    if(s.quiz.qnum>=10){ const quiz=Object.assign({},s.quiz,{done:true}); clearInterval(this._qt); this.setState({quiz}); return; }
+    let t=pool[(Math.random()*pool.length)|0];
+    if(pool.length>1&&this._lastQ===t.uid) t=pool[(Math.random()*pool.length)|0];
+    this._lastQ=t.uid;
+    const all=this.cat[t.set].filter(i=>i.uid!==t.uid);
+    const same=this.shuffle(all.filter(i=>i.group===t.group));
+    const rest=this.shuffle(all.filter(i=>i.group!==t.group));
+    const n=Math.min(this.props.quizChoices??4,all.length+1);
+    const opts=this.shuffle([t].concat(same.concat(rest).slice(0,n-1)));
+    const secs=this.props.quizSeconds??10;
+    const quiz=Object.assign({},s.quiz,{qnum:s.quiz.qnum+1,target:t,opts,picked:null,deadline:Date.now()+secs*1000,left:secs*1000});
+    this.setState({quiz});
+    clearInterval(this._qt);
+    if(s.qcfg.timed) this._qt=setInterval(()=>{
+      const q=this.state.quiz; if(!q||q.picked!==null) return;
+      const left=q.deadline-Date.now();
+      if(left<=0){ this.pickOpt(-1); } else this.setState({quiz:Object.assign({},q,{left})});
+    },100);
+  }
+  pickOpt(i){
+    const q=this.state.quiz; if(!q||q.picked!==null) return;
+    clearInterval(this._qt);
+    const ok=i>=0&&q.opts[i].uid===q.target.uid;
+    const qstats=Object.assign({},this.state.qstats);
+    const rec=Object.assign({a:0,c:0},qstats[q.target.uid]);
+    rec.a++; if(ok) rec.c++; qstats[q.target.uid]=rec;
+    const quiz=Object.assign({},q,{picked:i,ok,score:q.score+(ok?1:0),streak:ok?q.streak+1:0,
+      missed:ok?q.missed:q.missed.concat([q.target.uid])});
+    this.setState({quiz,qstats},()=>this.persist());
+    if(ok) this._auto=setTimeout(()=>{ if(this.state.quiz&&this.state.quiz.picked!==null&&!this.state.quiz.done) this.nextQ(); },900);
+  }
+  openCase(uid){
+    const it=this.find(uid); if(!it) return;
+    this.setState({modal:uid,play:null,tab:this.state.tab});
+  }
+  // ---------- render ----------
+  renderVals(){
+    const s=this.state, C=window.CUBE, A=window.ALGS;
+    const v={ theme:s.theme, wide:s.wide, narrow:!s.wide, loading:!s.ready,
+      themeGlyph:s.theme==='dark'?'◐':'◑',
+      toggleTheme:()=>this.setState({theme:s.theme==='dark'?'light':'dark'},()=>this.persist()),
+      isLearn:s.ready&&s.tab==='learn', isDrill:s.ready&&s.tab==='drill', isTimer:s.ready&&s.tab==='timer',
+      isGuide:s.ready&&s.tab==='guide', isStats:s.ready&&s.tab==='stats',
+      modalOn:false, playOn:false, playOff:true, m:{}, quizTimed:false };
+    v.nav=[['learn','Learn'],['drill','Drill'],['timer','Timer'],['guide','Guide'],['stats','Progress']].map(n=>({
+      label:n[1], icon:this.navIcon(n[0]), go:()=>this.setState({tab:n[0]}),
+      bg:s.tab===n[0]?'var(--accsf)':'transparent', co:s.tab===n[0]?'var(--tx)':'var(--tx2)',
+      co2:s.tab===n[0]?'var(--acc)':'var(--tx2)'}));
+    if(!s.ready) return v;
+    // ----- learn -----
+    const setDefs=[['f2l','F2L'],['oll','OLL'],['pll','PLL'],['oll2','2-Look OLL'],['pll2','2-Look PLL'],['cross','Cross']];
+    v.setChips=setDefs.map(d=>Object.assign({label:d[1],pick:()=>this.setState({set:d[0],stFilter:-1})},this.chip(s.set===d[0])));
+    v.isCross=s.set==='cross'; v.notCross=!v.isCross;
+    v.setIntro=s.set==='oll2'?A.oll2.intro:(s.set==='pll2'?A.pll2.intro+' '+A.pll2.cornersHint:(s.set==='cross'?A.cross.intro:null));
+    v.crossTips=A.cross.tips.map((t,i)=>({num:'0'+(i+1),title:t[0],body:t[1]}));
+    if(v.notCross){
+      const items=this.cat[s.set]||[];
+      const counts=[0,0,0,0]; items.forEach(it=>counts[s.status[it.uid]||0]++);
+      const stDefs=[[-1,'All'],[0,'New'],[1,'Want'],[2,'Learning'],[3,'Known']];
+      v.statusChips=stDefs.map(d=>Object.assign({
+        label:d[1], count:d[0]<0?items.length:counts[d[0]],
+        dot:d[0]<0?'var(--acc)':this.stMeta(d[0]).co,
+        pick:()=>this.setState({stFilter:d[0]})},this.chip(s.stFilter===d[0])));
+      const tot=items.length||1;
+      v.pctKnown=(counts[3]/tot*100).toFixed(1); v.pctLearn=(counts[2]/tot*100).toFixed(1); v.pctWant=(counts[1]/tot*100).toFixed(1);
+      v.learnItems=items.filter(it=>s.stFilter<0||(s.status[it.uid]||0)===s.stFilter).map(it=>{
+        const st=s.status[it.uid]||0, meta=this.stMeta(st);
+        return { id:it.id, name:it.name, svg:this.svgFor(it), dot:st===0?'transparent':meta.co,
+          stLabel:meta.label, stCo:meta.co,
+          open:()=>this.openCase(it.uid),
+          cycle:(e)=>{ e.stopPropagation(); this.setStatus(it.uid,(st+1)%4); } };
+      });
+    }
+    // ----- modal -----
+    if(s.modal){
+      const it=this.find(s.modal);
+      if(it){
+        v.modalOn=true;
+        const st=s.status[it.uid]||0, pref=s.pref[it.uid]||0;
+        const setup=C.invert(it.algs[Math.min(pref,it.algs.length-1)]);
+        const trigsFound={};
+        const algs=it.algs.map((alg,i)=>{
+          const segs=C.segments(alg).map(g=>{ if(g.trig) trigsFound[g.trig]=g.label;
+            return { txt:g.txt, title:g.label||'', co:g.trig?this.trigCo(g.trig):'var(--tx)', bb:g.trig?('2px solid '+this.trigCo(g.trig)):'none' }; });
+          return { segs, starCo:i===Math.min(pref,it.algs.length-1)?'var(--warn)':'var(--ln)',
+            makePref:()=>{ const p=Object.assign({},s.pref); p[it.uid]=i; this.setState({pref:p},()=>this.persist()); },
+            play:()=>this.setState({play:{alg,step:0}}) };
+        });
+        const qs=s.qstats[it.uid];
+        v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+it.name:'', groupUp:(it.group||'').toUpperCase(), svg:this.svgFor(it),
+          hint:it.hint||null, ft:it.ft||null, algs, setup,
+          legendOn:Object.keys(trigsFound).length>0,
+          legend:Object.keys(trigsFound).map(k=>({co:this.trigCo(k),label:trigsFound[k]})),
+          statusOpts:[0,1,2,3].map(x=>{ const mm=this.stMeta(x); const on=st===x;
+            return { label:mm.label, pick:()=>this.setStatus(it.uid,x),
+              bd:on?mm.co:'var(--ln)', bg:on?'var(--sf2)':'var(--sf)', co:on?mm.co:'var(--tx2)' }; }),
+          toTimer:()=>{ if(it.set==='f2l'||it.set==='oll'||it.set==='pll'){
+              this.setState({modal:null,tab:'timer',tmode:'case',tcaseSet:it.set,tcase:it.uid},()=>this.newScr());
+            } else this.setState({modal:null,tab:'timer'}); },
+          acc:qs?('drill record: '+qs.c+'/'+qs.a+' correct'):null };
+        if(s.play){
+          v.playOn=true; v.playOff=false;
+          const tokens=C.parseAlg(s.play.alg);
+          let cs=C.caseState(s.play.alg);
+          for(let i=0;i<s.play.step;i++) cs=C.applyToken(cs,tokens[i]);
+          v.playSvg=this.cube3d(cs,s.play.anim);
+          v.playTokens=tokens.map((t,i)=>({ txt:t,
+            bg:i===s.play.step?'var(--acc)':(i<s.play.step?'var(--sf2)':'var(--sf)'),
+            co:i===s.play.step?'#fff':(i<s.play.step?'var(--tx2)':'var(--tx)') }));
+          v.playNext=()=>this.playGo(1);
+          v.playPrev=()=>this.playGo(-1);
+          v.playReset=()=>{ clearTimeout(this._pt); this.setState({play:{alg:s.play.alg,step:0,anim:null}}); };
+          v.playStop=()=>this.setState({play:null});
+        }
+      }
+    }
+    v.closeModal=()=>this.setState({modal:null,play:null});
+    v.eatClick=(e)=>e.stopPropagation();
+    v.sheetAlign=s.wide?'center':'flex-end';
+    v.sheetPad=s.wide?'24px':'0';
+    v.sheetRadius=s.wide?'22px':'22px 22px 0 0';
+    // ----- drill -----
+    const q=s.quiz;
+    v.qConfig=!q; v.qActive=!!q&&!q.done; v.qDone=!!q&&q.done;
+    v.qSetChips=[['f2l','F2L'],['oll','OLL'],['pll','PLL']].map(d=>Object.assign({
+      label:d[1], pick:()=>{ const sets=Object.assign({},s.qcfg.sets); sets[d[0]]=!sets[d[0]];
+        this.setState({qcfg:Object.assign({},s.qcfg,{sets})},()=>this.persist()); }},this.chip(s.qcfg.sets[d[0]])));
+    v.qScopeChips=[['all','All cases'],['learn','Want + learning'],['known','Known only']].map(d=>Object.assign({
+      label:d[1], pick:()=>this.setState({qcfg:Object.assign({},s.qcfg,{scope:d[0]})},()=>this.persist())},this.chip(s.qcfg.scope===d[0])));
+    v.qModeChips=[['name','Case name'],['alg','Algorithm'],['timed','Name · timed']].map(d=>Object.assign({
+      label:d[1], pick:()=>this.setState({qcfg:Object.assign({},s.qcfg,{mode:d[0]==='timed'?'name':d[0],timed:d[0]==='timed'})},()=>this.persist())},
+      this.chip(d[0]==='timed'?s.qcfg.timed:(s.qcfg.mode===d[0]&&!s.qcfg.timed))));
+    const pool=this.quizPool();
+    v.qPoolLabel=pool.length+' cases in pool';
+    v.qStartDisabled=pool.length<2;
+    v.qStartBg=pool.length<2?'var(--sf2)':'var(--acc)';
+    v.startQuiz=()=>this.startQuiz();
+    v.quitQuiz=()=>{ clearInterval(this._qt); this.setState({quiz:null}); };
+    if(q&&!q.done&&q.target){
+      v.quizNum=q.qnum; v.quizScore=q.score; v.quizStreak=q.streak;
+      v.quizTimed=s.qcfg.timed;
+      const secs=(this.props.quizSeconds??10)*1000;
+      v.quizBarPct=Math.max(0,(q.left/secs*100)).toFixed(1);
+      v.quizBarCo=q.left<secs*0.3?'var(--bad)':'var(--acc)';
+      v.quizSvg=this.svgFor(q.target);
+      v.quizPrompt=s.qcfg.mode==='alg'?'WHICH ALGORITHM SOLVES THIS?':'NAME THIS CASE';
+      v.quizCols=s.qcfg.mode==='alg'?'1fr':(s.wide?'1fr 1fr':'1fr');
+      v.quizOpts=q.opts.map((o,i)=>{
+        const isPick=q.picked===i, isRight=q.picked!==null&&o.uid===q.target.uid;
+        return { label:s.qcfg.mode==='alg'?o.algs[0]:this.lbl(o),
+          ff:s.qcfg.mode==='alg'?"'IBM Plex Mono',monospace":'inherit',
+          fs:s.qcfg.mode==='alg'?'13px':'14.5px',
+          bd:isRight?'var(--good)':(isPick?'var(--bad)':'var(--ln)'),
+          bg:isRight?'color-mix(in srgb, var(--good) 14%, var(--sf))':(isPick?'color-mix(in srgb, var(--bad) 12%, var(--sf))':'var(--sf)'),
+          co:'var(--tx)', pick:()=>this.pickOpt(i) };
+      });
+      v.quizFb=q.picked===null?'':(q.ok?['Nice.','Clean.','That’s it.','Instant.'][q.qnum%4]:(q.picked===-1?'Time! It was '+q.target.id+'.':'It was '+this.lbl(q.target)));
+      v.quizFbCo=q.ok?'var(--good)':'var(--bad)';
+      v.quizNextOn=q.picked!==null;
+      v.quizNext=()=>{ clearTimeout(this._auto); this.nextQ(); };
+    }
+    if(q&&q.done){
+      v.quizScore=q.score;
+      v.quizVerdict=q.score>=9?'Recognition is automatic. Add harder cases.':(q.score>=7?'Solid — drill the misses below.':(q.score>=4?'Getting there. Repetition builds recognition.':'Slow down in Learn mode first, then come back.'));
+      const uniq=Array.from(new Set(q.missed));
+      v.quizMissedOn=uniq.length>0;
+      v.quizMissed=uniq.map(uid=>{ const it=this.find(uid);
+        return { label:this.lbl(it), svg:this.svgFor(it), open:()=>this.openCase(uid) }; });
+    }
+    // ----- timer -----
+    v.tmodeChips=[['random','Random scramble'],['case','Case drill']].map(d=>Object.assign({
+      label:d[1], pick:()=>this.setState({tmode:d[0]},()=>{ this.persist(); this.newScr(); })},this.chip(s.tmode===d[0])));
+    v.tCaseMode=s.tmode==='case';
+    v.tcaseSet=s.tcaseSet; v.tcase=s.tcase||'';
+    v.tcaseSetPick=(e)=>this.setState({tcaseSet:e.target.value,tcase:this.cat[e.target.value][0].uid},()=>{ this.persist(); this.newScr(); });
+    v.tcasePick=(e)=>this.setState({tcase:e.target.value},()=>{ this.persist(); this.newScr(); });
+    v.tcaseOpts=(this.cat[s.tcaseSet]||[]).map(i=>({uid:i.uid,label:this.lbl(i)}));
+    const ins=this.chip(s.inspection);
+    v.inspBd=ins.bd; v.inspBg=ins.bg; v.inspCo=ins.co; v.inspState=s.inspection?'on':'off';
+    v.toggleInspection=()=>this.setState({inspection:!s.inspection},()=>this.persist());
+    v.scr=s.scr; v.newScr=()=>this.newScr();
+    v.showPreview=s.showPreview; v.prevBg=s.showPreview?'var(--accsf)':'var(--sf2)';
+    v.togglePreview=()=>this.setState({showPreview:!s.showPreview});
+    v.scrSvg=s.showPreview?this.scrSvgEl():null;
+    v.padDown=(e)=>this.padDown(e); v.padUp=()=>this.padUp(); v.padCancel=()=>this.padCancel(); v.noCtx=(e)=>e.preventDefault();
+    const solves=this.session().solves;
+    const lastSv=solves[solves.length-1];
+    if(s.tstate==='run'){ v.timeDisp=this.fmt(s.now-s.t0); v.timeCo='var(--tx)'; v.padHint='tap to stop'; v.padBg='var(--sf)'; v.padBd='var(--acc)'; }
+    else if(s.tstate==='inspect'){
+      const left=15-Math.floor((s.now-s.inspStart)/1000);
+      v.timeDisp=String(Math.max(-2,left)); v.timeCo=s.armed?'var(--good)':(left<=3?'var(--bad)':'var(--warn)');
+      v.padHint=s.armed?'release to start':'inspecting — hold, then release to start'; v.padBg='var(--sf)'; v.padBd=left<=3?'var(--bad)':'var(--warn)';
+    }
+    else { v.timeDisp=s.armed?'0.00':(lastSv?this.fmt(this.solveMs(lastSv))+(lastSv.pen==='dnf'?'':(lastSv.pen===2?'+':'')):'0.00');
+      if(lastSv&&lastSv.pen==='dnf'&&!s.armed) v.timeDisp='DNF';
+      v.timeCo=s.armed?'var(--good)':'var(--tx)';
+      v.padHint=s.armed?'release to start':(s.inspection?'tap to inspect':'hold, release to start · space on desktop');
+      v.padBg=s.armed?'color-mix(in srgb, var(--good) 10%, var(--sf))':'var(--sf)'; v.padBd=s.armed?'var(--good)':'var(--ln)'; }
+    v.tstats=[['BEST',this.best(solves)||'—'],['AO5',this.aoN(solves,5)||'—'],['AO12',this.aoN(solves,12)||'—'],
+      ['MEAN',solves.length?this.fmt(solves.filter(x=>x.pen!=='dnf').reduce((a,b)=>a+this.solveMs(b),0)/Math.max(1,solves.filter(x=>x.pen!=='dnf').length)):'—'],
+      ['SOLVES',String(solves.length)]].map(x=>({label:x[0],val:x[1]}));
+    v.cur=s.cur;
+    v.sessionOpts=s.sessions.map((x,i)=>({i,label:x.name+' ('+x.solves.length+')'}));
+    v.sessionPick=(e)=>this.setState({cur:+e.target.value},()=>this.persist());
+    v.newSession=()=>{ const sessions=s.sessions.concat([{name:'Session '+(s.sessions.length+1),solves:[]}]);
+      this.setState({sessions,cur:sessions.length-1},()=>this.persist()); };
+    v.clearSession=()=>{ const sessions=s.sessions.map((x,i)=>i===s.cur?{name:x.name,solves:[]}:x);
+      this.setState({sessions},()=>this.persist()); };
+    v.solveRows=solves.map((sv,i)=>({
+      num:'#'+(i+1),
+      disp:sv.pen==='dnf'?'DNF':this.fmt(this.solveMs(sv))+(sv.pen===2?'+':''),
+      co:sv.pen==='dnf'?'var(--bad)':(sv.pen===2?'var(--warn)':'var(--tx)'),
+      p2bg:sv.pen===2?'var(--accsf)':'var(--sf2)', dnfbg:sv.pen==='dnf'?'var(--accsf)':'var(--sf2)',
+      plus2:()=>this.mutSolve(i,(x)=>{ x.pen=x.pen===2?0:2; }),
+      dnf:()=>this.mutSolve(i,(x)=>{ x.pen=x.pen==='dnf'?0:'dnf'; }),
+      del:()=>this.mutSolve(i,(x,arr)=>{ arr.splice(i,1); return arr; })
+    })).reverse();
+    // ----- guide -----
+    v.gsteps=A.guide.steps.map((g,i)=>({num:'0'+(i+1),title:g[0],body:g[1],
+      go:()=>this.setState({tab:'learn',set:g[2],stFilter:-1})}));
+    v.grips=A.guide.grips.map(g=>({title:g[0],body:g[1]}));
+    v.trigRows=A.guide.triggers.map(t=>({co:this.trigCo(t[0]),name:t[1],alg:t[2],body:t[3]}));
+    v.habits=A.guide.habits.map(h=>({title:h[0],body:h[1]}));
+    // ----- stats -----
+    v.progRows=[['f2l','F2L'],['oll','OLL'],['pll','PLL']].map(d=>{
+      const items=this.cat[d[0]], c=[0,0,0,0];
+      items.forEach(it=>c[s.status[it.uid]||0]++);
+      const tot=items.length;
+      return { label:d[1], counts:c[3]+' / '+tot+' known',
+        k:(c[3]/tot*100).toFixed(1), l:(c[2]/tot*100).toFixed(1), w:(c[1]/tot*100).toFixed(1),
+        go:()=>this.setState({tab:'learn',set:d[0],stFilter:-1}) };
+    });
+    let qa=0,qc=0; Object.keys(s.qstats).forEach(k=>{ qa+=s.qstats[k].a; qc+=s.qstats[k].c; });
+    v.qTotal=String(qa); v.qAcc=qa?Math.round(qc/qa*100)+'%':'—';
+    const weak=Object.keys(s.qstats).map(uid=>({uid,rec:s.qstats[uid]}))
+      .filter(x=>x.rec.a>=2&&x.rec.c<x.rec.a)
+      .sort((a,b)=>(a.rec.c/a.rec.a)-(b.rec.c/b.rec.a)).slice(0,8)
+      .map(x=>{ const it=this.find(x.uid); if(!it) return null;
+        return { label:this.lbl(it), svg:this.svgFor(it),
+          acc:Math.round(x.rec.c/x.rec.a*100)+'%', open:()=>this.openCase(x.uid) }; }).filter(Boolean);
+    v.weakOn=weak.length>0; v.weakRows=weak;
+    const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves));
+    v.globalTstats=[['ALL-TIME BEST',this.best(allSolves)||'—'],['TOTAL SOLVES',String(allSolves.length)],
+      ['SESSIONS',String(s.sessions.length)]].map(x=>({label:x[0],val:x[1]}));
+    return v;
+  }
+  navIcon(k){
+    const p={
+      learn:'<rect x="3" y="3" width="8" height="8" rx="2.2"/><rect x="13" y="3" width="8" height="8" rx="2.2"/><rect x="3" y="13" width="8" height="8" rx="2.2"/><rect x="13" y="13" width="8" height="8" rx="2.2"/>',
+      drill:'<circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M9.6 9.8a2.5 2.5 0 1 1 3.2 2.7c-.7.25-.8.8-.8 1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.2"/>',
+      timer:'<circle cx="12" cy="13.4" r="7.6" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 13.4V9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M9.4 2.8h5.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+      guide:'<path d="M4.5 5.4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v13.2a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M8.4 8.2h7.2M8.4 12h7.2M8.4 15.8h4.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      stats:'<rect x="4" y="12.5" width="4.4" height="8" rx="1.4"/><rect x="9.8" y="8" width="4.4" height="12.5" rx="1.4"/><rect x="15.6" y="3.5" width="4.4" height="17" rx="1.4"/>'};
+    return React.createElement('span',{style:{display:'inline-flex'},
+      dangerouslySetInnerHTML:{__html:'<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">'+p[k]+'</svg>'}});
+  }
+}

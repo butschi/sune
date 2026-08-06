@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SUNE — CFOP Trainer</title>
+<meta name="description" content="Learn and perfect the CFOP speedcubing method: algorithms, finger tricks, recognition drills, scrambler and timer.">
+<meta name="theme-color" content="#17141c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+html,body{margin:0;padding:0;background:#17141c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+a{color:#a878f0}a:hover{color:#c4a4ff}
+button{font-family:inherit;cursor:pointer}
+select{font-family:inherit}
+#sune{--bg:#17141c;--sf:#201c28;--sf2:#2b2536;--tx:#f2eff7;--tx2:#9b92ad;--ln:#352d44;--acc:#a878f0;--accsf:#2e2442;--good:#4ecb7d;--warn:#e8b04c;--info:#58b8e8;--bad:#ef6262;--ck-gray:#46404f;--ck-line:#17141c}
+#sune[data-theme="light"]{--bg:#f5f3f8;--sf:#ffffff;--sf2:#eae6f1;--tx:#251f2e;--tx2:#6d6480;--ln:#dcd5e7;--acc:#7c48e0;--accsf:#eadffc;--good:#1f9d55;--warn:#a86f10;--info:#1878a8;--bad:#cc3f3f;--ck-gray:#d4cfde;--ck-line:#2b2536}
+@keyframes pop{0%{transform:scale(.97);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes rise{0%{transform:translateY(24px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes spXp90{from{transform:rotateX(0deg) var(--b)}to{transform:rotateX(90deg) var(--b)}}
+@keyframes spXn90{from{transform:rotateX(0deg) var(--b)}to{transform:rotateX(-90deg) var(--b)}}
+@keyframes spXp180{from{transform:rotateX(0deg) var(--b)}to{transform:rotateX(180deg) var(--b)}}
+@keyframes spXn180{from{transform:rotateX(0deg) var(--b)}to{transform:rotateX(-180deg) var(--b)}}
+@keyframes spYp90{from{transform:rotateY(0deg) var(--b)}to{transform:rotateY(90deg) var(--b)}}
+@keyframes spYn90{from{transform:rotateY(0deg) var(--b)}to{transform:rotateY(-90deg) var(--b)}}
+@keyframes spYp180{from{transform:rotateY(0deg) var(--b)}to{transform:rotateY(180deg) var(--b)}}
+@keyframes spYn180{from{transform:rotateY(0deg) var(--b)}to{transform:rotateY(-180deg) var(--b)}}
+@keyframes spZp90{from{transform:rotateZ(0deg) var(--b)}to{transform:rotateZ(90deg) var(--b)}}
+@keyframes spZn90{from{transform:rotateZ(0deg) var(--b)}to{transform:rotateZ(-90deg) var(--b)}}
+@keyframes spZp180{from{transform:rotateZ(0deg) var(--b)}to{transform:rotateZ(180deg) var(--b)}}
+@keyframes spZn180{from{transform:rotateZ(0deg) var(--b)}to{transform:rotateZ(-180deg) var(--b)}}
+</style>
+<script defer src="vendor/react.production.min.js"></script>
+<script defer src="vendor/react-dom.production.min.js"></script>
+<script defer src="cube.js"></script>
+<script defer src="algs.js"></script>
+<script defer src="f2l.js"></script>
+<script defer src="dc.js"></script>
+<script defer src="logic.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/x-template" id="dc-template">
+<div id="sune" data-theme="{{theme}}" style="min-height:100vh;background:var(--bg);color:var(--tx);font-family:'Outfit',system-ui,sans-serif;user-select:none">
+  <div style="position:sticky;top:0;z-index:50;background:color-mix(in srgb, var(--bg) 86%, transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--ln)">
+    <div style="max-width:1060px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:10px 16px">
+      <div style="display:flex;align-items:baseline;gap:9px;flex-shrink:0">
+        <div style="font-weight:800;font-size:21px;letter-spacing:.08em">SUNE</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--tx2);letter-spacing:.18em">CFOP TRAINER</div>
+      </div>
+      <sc-if value="{{wide}}" hint-placeholder-val="{{false}}">
+        <div style="display:flex;gap:4px;margin-left:18px">
+          <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+            <button onClick="{{n.go}}" style="display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:99px;border:none;background:{{n.bg}};color:{{n.co}};font-size:13.5px;font-weight:600">{{n.icon}}{{n.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="flex:1"></div>
+      <button onClick="{{toggleTheme}}" title="Toggle dark / light" style="width:36px;height:36px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:15px;line-height:1">{{themeGlyph}}</button>
+    </div>
+  </div>
+  <div style="max-width:1060px;margin:0 auto;padding:16px 16px 108px">
+    <sc-if value="{{loading}}" hint-placeholder-val="{{true}}">
+      <div style="padding:80px 0;text-align:center;color:var(--tx2);font-family:'IBM Plex Mono',monospace;font-size:13px">loading cube engine…</div>
+    </sc-if>
+
+    <sc-if value="{{isLearn}}" hint-placeholder-val="{{false}}">
+      <div data-screen-label="Learn" style="animation:pop .15s ease">
+        <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none">
+          <sc-for list="{{setChips}}" as="c" hint-placeholder-count="6">
+            <button onClick="{{c.pick}}" style="flex-shrink:0;padding:8px 14px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:13.5px;font-weight:600">{{c.label}}</button>
+          </sc-for>
+        </div>
+        <sc-if value="{{setIntro}}" hint-placeholder-val="{{false}}">
+          <p style="color:var(--tx2);font-size:14.5px;line-height:1.55;margin:14px 2px 2px;max-width:640px">{{setIntro}}</p>
+        </sc-if>
+        <sc-if value="{{isCross}}" hint-placeholder-val="{{false}}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px">
+            <sc-for list="{{crossTips}}" as="t" hint-placeholder-count="6">
+              <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:16px 18px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--acc);font-weight:600">{{t.num}}</div>
+                  <div style="font-weight:700;font-size:15.5px">{{t.title}}</div>
+                </div>
+                <div style="color:var(--tx2);font-size:14px;line-height:1.55">{{t.body}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{notCross}}" hint-placeholder-val="{{true}}">
+          <div style="display:flex;align-items:center;gap:10px;margin:14px 2px 12px;flex-wrap:wrap">
+            <sc-for list="{{statusChips}}" as="c" hint-placeholder-count="5">
+              <button onClick="{{c.pick}}" style="padding:6px 11px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:12.5px;font-weight:600;display:flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:99px;background:{{c.dot}};display:inline-block"></span>{{c.label}}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.75">{{c.count}}</span></button>
+            </sc-for>
+          </div>
+          <div style="height:6px;border-radius:99px;background:var(--sf2);overflow:hidden;display:flex;margin:0 2px 16px">
+            <div style="background:var(--good);width:{{pctKnown}}%"></div>
+            <div style="background:var(--warn);width:{{pctLearn}}%"></div>
+            <div style="background:var(--info);width:{{pctWant}}%"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">
+            <sc-for list="{{learnItems}}" as="it" hint-placeholder-count="12">
+              <div onClick="{{it.open}}" style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:14px 12px 10px;cursor:pointer;position:relative;text-align:center">
+                <div style="position:absolute;top:10px;right:10px;width:9px;height:9px;border-radius:99px;background:{{it.dot}}"></div>
+                <div style="width:74%;max-width:120px;margin:0 auto">{{it.svg}}</div>
+                <div style="font-weight:700;font-size:14.5px;margin-top:9px">{{it.id}}</div>
+                <div style="color:var(--tx2);font-size:12.5px;margin-top:1px;min-height:16px">{{it.name}}</div>
+                <button onClick="{{it.cycle}}" style="margin-top:8px;padding:4px 11px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:{{it.stCo}};font-size:11px;font-weight:700;letter-spacing:.04em">{{it.stLabel}}</button>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isDrill}}" hint-placeholder-val="{{false}}">
+      <div data-screen-label="Drill" style="animation:pop .15s ease;max-width:640px;margin:0 auto">
+        <sc-if value="{{qConfig}}" hint-placeholder-val="{{true}}">
+          <h2 style="font-size:20px;font-weight:800;margin:6px 2px 4px">Pattern drill</h2>
+          <p style="color:var(--tx2);font-size:14px;line-height:1.5;margin:0 2px 16px">See the case, name it before your fingers move. 10 questions per round.</p>
+          <div style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:16px;display:grid;gap:14px">
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin-bottom:8px">CASE SETS</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{qSetChips}}" as="c" hint-placeholder-count="3">
+                  <button onClick="{{c.pick}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:13px;font-weight:600">{{c.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin-bottom:8px">WHICH CASES</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{qScopeChips}}" as="c" hint-placeholder-count="3">
+                  <button onClick="{{c.pick}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:13px;font-weight:600">{{c.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin-bottom:8px">ANSWER WITH</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{qModeChips}}" as="c" hint-placeholder-count="3">
+                  <button onClick="{{c.pick}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:13px;font-weight:600">{{c.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--ln);padding-top:14px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tx2)">{{qPoolLabel}}</div>
+              <button onClick="{{startQuiz}}" disabled="{{qStartDisabled}}" style="padding:11px 22px;border-radius:99px;border:none;background:{{qStartBg}};color:#fff;font-size:15px;font-weight:700">Start round</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{qActive}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 2px 10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--tx2)">
+            <div>Q {{quizNum}}/10</div>
+            <div>score {{quizScore}} · streak {{quizStreak}}</div>
+            <button onClick="{{quitQuiz}}" style="border:none;background:none;color:var(--tx2);font-family:inherit;font-size:12.5px;text-decoration:underline">quit</button>
+          </div>
+          <sc-if value="{{quizTimed}}" hint-placeholder-val="{{false}}">
+            <div style="height:5px;border-radius:99px;background:var(--sf2);overflow:hidden;margin-bottom:12px">
+              <div style="height:100%;background:{{quizBarCo}};width:{{quizBarPct}}%"></div>
+            </div>
+          </sc-if>
+          <div style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:18px;text-align:center">
+            <div style="max-width:210px;margin:0 auto">{{quizSvg}}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2);margin-top:8px;letter-spacing:.08em">{{quizPrompt}}</div>
+          </div>
+          <div style="display:grid;gap:9px;margin-top:12px;grid-template-columns:{{quizCols}}">
+            <sc-for list="{{quizOpts}}" as="o" hint-placeholder-count="4">
+              <button onClick="{{o.pick}}" style="padding:13px 15px;border-radius:13px;border:1.5px solid {{o.bd}};background:{{o.bg}};color:{{o.co}};font-size:{{o.fs}};font-weight:600;text-align:left;font-family:{{o.ff}};line-height:1.4;min-height:48px">{{o.label}}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;min-height:46px;margin-top:10px">
+            <div style="font-weight:700;font-size:14.5px;color:{{quizFbCo}}">{{quizFb}}</div>
+            <sc-if value="{{quizNextOn}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{quizNext}}" style="padding:10px 20px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:700">Next →</button>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{qDone}}" hint-placeholder-val="{{false}}">
+          <div style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:26px 20px;text-align:center;animation:rise .25s ease">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tx2);letter-spacing:.14em">ROUND COMPLETE</div>
+            <div style="font-size:44px;font-weight:800;margin:8px 0 2px">{{quizScore}}<span style="color:var(--tx2);font-size:22px">/10</span></div>
+            <div style="color:var(--tx2);font-size:14px">{{quizVerdict}}</div>
+            <sc-if value="{{quizMissedOn}}" hint-placeholder-val="{{false}}">
+              <div style="margin-top:16px;text-align:left">
+                <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin-bottom:8px">MISSED CASES</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{quizMissed}}" as="m" hint-placeholder-count="2">
+                    <button onClick="{{m.open}}" style="display:flex;align-items:center;gap:10px;background:var(--sf2);border:1px solid var(--ln);border-radius:11px;padding:8px 12px;color:var(--tx);font-size:13.5px;font-weight:600;text-align:left"><span style="width:34px;flex-shrink:0">{{m.svg}}</span>{{m.label}}<span style="margin-left:auto;color:var(--tx2);font-size:12px">review →</span></button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+              <button onClick="{{startQuiz}}" style="padding:11px 22px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:14.5px;font-weight:700">Again</button>
+              <button onClick="{{quitQuiz}}" style="padding:11px 22px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:14.5px;font-weight:600">Settings</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isTimer}}" hint-placeholder-val="{{false}}">
+      <div data-screen-label="Timer" style="animation:pop .15s ease;max-width:640px;margin:0 auto">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <sc-for list="{{tmodeChips}}" as="c" hint-placeholder-count="2">
+            <button onClick="{{c.pick}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:13px;font-weight:600">{{c.label}}</button>
+          </sc-for>
+          <div style="flex:1"></div>
+          <button onClick="{{toggleInspection}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{inspBd}};background:{{inspBg}};color:{{inspCo}};font-size:13px;font-weight:600">15s inspection {{inspState}}</button>
+        </div>
+        <sc-if value="{{tCaseMode}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <select value="{{tcaseSet}}" onChange="{{tcaseSetPick}}" style="padding:9px 10px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13.5px">
+              <option value="f2l">F2L</option><option value="oll">OLL</option><option value="pll">PLL</option>
+            </select>
+            <select value="{{tcase}}" onChange="{{tcasePick}}" style="flex:1;padding:9px 10px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13.5px">
+              <sc-for list="{{tcaseOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.uid}}">{{o.label}}</option></sc-for>
+            </select>
+          </div>
+        </sc-if>
+        <div style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:14px 16px;margin-top:12px">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <div style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:15.5px;line-height:1.75;letter-spacing:.03em;user-select:text">{{scr}}</div>
+            <button onClick="{{newScr}}" title="New scramble" style="width:34px;height:34px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:15px">↻</button>
+            <button onClick="{{togglePreview}}" title="Show cube preview" style="width:34px;height:34px;border-radius:99px;border:1px solid var(--ln);background:{{prevBg}};color:var(--tx);font-size:13px">⬒</button>
+          </div>
+          <sc-if value="{{showPreview}}" hint-placeholder-val="{{false}}">
+            <div style="max-width:250px;margin:10px auto 2px">{{scrSvg}}</div>
+          </sc-if>
+        </div>
+        <div onPointerDown="{{padDown}}" onPointerUp="{{padUp}}" onPointerCancel="{{padCancel}}" onContextMenu="{{noCtx}}" style="background:{{padBg}};border:1px solid {{padBd}};border-radius:18px;margin-top:12px;height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;touch-action:none">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:64px;font-weight:600;color:{{timeCo}};font-variant-numeric:tabular-nums">{{timeDisp}}</div>
+          <div style="font-size:12.5px;color:var(--tx2);letter-spacing:.06em">{{padHint}}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <sc-for list="{{tstats}}" as="s" hint-placeholder-count="5">
+            <div style="flex:1;min-width:88px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:9px 12px;text-align:center">
+              <div style="font-size:10.5px;font-weight:700;color:var(--tx2);letter-spacing:.1em">{{s.label}}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:16.5px;font-weight:600;margin-top:2px">{{s.val}}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:16px">
+          <select value="{{cur}}" onChange="{{sessionPick}}" style="flex:1;padding:9px 10px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13.5px">
+            <sc-for list="{{sessionOpts}}" as="o" hint-placeholder-count="1"><option value="{{o.i}}">{{o.label}}</option></sc-for>
+          </select>
+          <button onClick="{{newSession}}" style="padding:9px 14px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13px;font-weight:600">+ New</button>
+          <button onClick="{{clearSession}}" style="padding:9px 14px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--bad);font-size:13px;font-weight:600">Clear</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+          <sc-for list="{{solveRows}}" as="s" hint-placeholder-count="0">
+            <div style="display:flex;align-items:center;gap:10px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:8px 13px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2);width:28px">{{s.num}}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:15.5px;font-weight:600;color:{{s.co}}">{{s.disp}}</div>
+              <div style="flex:1"></div>
+              <button onClick="{{s.plus2}}" style="padding:4px 9px;border-radius:8px;border:1px solid var(--ln);background:{{s.p2bg}};color:var(--tx2);font-size:11.5px;font-weight:700">+2</button>
+              <button onClick="{{s.dnf}}" style="padding:4px 9px;border-radius:8px;border:1px solid var(--ln);background:{{s.dnfbg}};color:var(--tx2);font-size:11.5px;font-weight:700">DNF</button>
+              <button onClick="{{s.del}}" style="padding:4px 9px;border-radius:8px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx2);font-size:11.5px;font-weight:700">✕</button>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isGuide}}" hint-placeholder-val="{{false}}">
+      <div data-screen-label="Guide" style="animation:pop .15s ease;max-width:720px;margin:0 auto;display:grid;gap:26px">
+        <div>
+          <h2 style="font-size:20px;font-weight:800;margin:6px 2px 4px">The CFOP method</h2>
+          <p style="color:var(--tx2);font-size:14.5px;line-height:1.55;margin:0 2px 14px">Four steps, solved in order. Cross and F2L are where seconds live; OLL and PLL are pure algorithm knowledge. A comfortable CFOP solver averages 15–25 seconds — a fast one, under 10.</p>
+          <div style="display:grid;gap:10px">
+            <sc-for list="{{gsteps}}" as="g" hint-placeholder-count="4">
+              <div style="display:flex;gap:14px;background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:15px 16px;align-items:flex-start">
+                <div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;color:var(--acc);background:var(--accsf);border-radius:9px;padding:6px 9px;flex-shrink:0">{{g.num}}</div>
+                <div style="flex:1">
+                  <div style="font-weight:700;font-size:15.5px">{{g.title}}</div>
+                  <div style="color:var(--tx2);font-size:13.5px;line-height:1.5;margin-top:3px">{{g.body}}</div>
+                </div>
+                <button onClick="{{g.go}}" style="flex-shrink:0;padding:7px 13px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:12.5px;font-weight:600">Open →</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <h2 style="font-size:20px;font-weight:800;margin:0 2px 4px">Finger tricks</h2>
+          <p style="color:var(--tx2);font-size:14.5px;line-height:1.55;margin:0 2px 14px">Speed comes from fingers, not memory. Learn the grips once, then drill the four core triggers until they are reflexes — most algorithms are just triggers chained together.</p>
+          <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+            <sc-for list="{{grips}}" as="g" hint-placeholder-count="6">
+              <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:14px 16px">
+                <div style="font-weight:700;font-size:14.5px">{{g.title}}</div>
+                <div style="color:var(--tx2);font-size:13.5px;line-height:1.5;margin-top:4px">{{g.body}}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:grid;gap:10px;margin-top:14px">
+            <sc-for list="{{trigRows}}" as="t" hint-placeholder-count="4">
+              <div style="display:flex;gap:13px;align-items:flex-start;background:var(--sf);border:1px solid var(--ln);border-left:none;border-radius:14px;padding:14px 16px;position:relative;overflow:hidden">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:{{t.co}}"></div>
+                <div style="flex-shrink:0;min-width:120px">
+                  <div style="font-weight:700;font-size:14.5px;color:{{t.co}}">{{t.name}}</div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;margin-top:3px">{{t.alg}}</div>
+                </div>
+                <div style="color:var(--tx2);font-size:13.5px;line-height:1.5">{{t.body}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <h2 style="font-size:20px;font-weight:800;margin:0 2px 10px">Practice habits</h2>
+          <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+            <sc-for list="{{habits}}" as="h" hint-placeholder-count="4">
+              <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:14px 16px">
+                <div style="font-weight:700;font-size:14.5px">{{h.title}}</div>
+                <div style="color:var(--tx2);font-size:13.5px;line-height:1.5;margin-top:4px">{{h.body}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:15px 17px">
+          <div style="font-weight:700;font-size:14.5px">Free, offline, yours</div>
+          <div style="color:var(--tx2);font-size:13.5px;line-height:1.55;margin-top:4px">Everything lives on your device — statuses, drill stats and times are saved in your browser, no account needed. Install it as an app: in your mobile browser choose “Add to Home Screen”, or use the install icon in the address bar on desktop.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isStats}}" hint-placeholder-val="{{false}}">
+      <div data-screen-label="Progress" style="animation:pop .15s ease;max-width:640px;margin:0 auto;display:grid;gap:22px">
+        <div>
+          <h2 style="font-size:20px;font-weight:800;margin:6px 2px 12px">Algorithm progress</h2>
+          <div style="display:grid;gap:10px">
+            <sc-for list="{{progRows}}" as="p" hint-placeholder-count="3">
+              <div onClick="{{p.go}}" style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:13px 16px;cursor:pointer">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <div style="font-weight:700;font-size:14.5px">{{p.label}}</div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--tx2)">{{p.counts}}</div>
+                </div>
+                <div style="height:7px;border-radius:99px;background:var(--sf2);overflow:hidden;display:flex;margin-top:9px">
+                  <div style="background:var(--good);width:{{p.k}}%"></div>
+                  <div style="background:var(--warn);width:{{p.l}}%"></div>
+                  <div style="background:var(--info);width:{{p.w}}%"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:10px;padding:0 4px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)"><span style="width:9px;height:9px;border-radius:99px;background:var(--good);display:inline-block"></span>known</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)"><span style="width:9px;height:9px;border-radius:99px;background:var(--warn);display:inline-block"></span>learning</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)"><span style="width:9px;height:9px;border-radius:99px;background:var(--info);display:inline-block"></span>want to learn</div>
+          </div>
+        </div>
+        <div>
+          <h2 style="font-size:20px;font-weight:800;margin:0 2px 12px">Recognition drills</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:110px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:11px 14px;text-align:center">
+              <div style="font-size:10.5px;font-weight:700;color:var(--tx2);letter-spacing:.1em">ANSWERED</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">{{qTotal}}</div>
+            </div>
+            <div style="flex:1;min-width:110px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:11px 14px;text-align:center">
+              <div style="font-size:10.5px;font-weight:700;color:var(--tx2);letter-spacing:.1em">ACCURACY</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">{{qAcc}}</div>
+            </div>
+          </div>
+          <sc-if value="{{weakOn}}" hint-placeholder-val="{{false}}">
+            <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin:16px 2px 8px">WEAKEST CASES</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{weakRows}}" as="w" hint-placeholder-count="3">
+                <button onClick="{{w.open}}" style="display:flex;align-items:center;gap:11px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:8px 13px;color:var(--tx);font-size:13.5px;font-weight:600;text-align:left"><span style="width:36px;flex-shrink:0">{{w.svg}}</span>{{w.label}}<span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--bad)">{{w.acc}}</span></button>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <div>
+          <h2 style="font-size:20px;font-weight:800;margin:0 2px 12px">Timing</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{globalTstats}}" as="s" hint-placeholder-count="3">
+              <div style="flex:1;min-width:110px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:11px 14px;text-align:center">
+                <div style="font-size:10.5px;font-weight:700;color:var(--tx2);letter-spacing:.1em">{{s.label}}</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">{{s.val}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{narrow}}" hint-placeholder-val="{{true}}">
+    <div style="position:fixed;bottom:0;left:0;right:0;z-index:60;background:color-mix(in srgb, var(--bg) 90%, transparent);backdrop-filter:blur(14px);border-top:1px solid var(--ln);padding:6px 8px calc(6px + env(safe-area-inset-bottom))">
+      <div style="max-width:520px;margin:0 auto;display:flex">
+        <sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+          <button onClick="{{n.go}}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0 5px;border:none;background:none;color:{{n.co2}};font-size:10.5px;font-weight:700;letter-spacing:.04em;border-radius:12px;min-height:48px">{{n.icon}}{{n.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{modalOn}}" hint-placeholder-val="{{false}}">
+    <div onClick="{{closeModal}}" style="position:fixed;inset:0;z-index:100;background:rgba(10,7,16,.62);display:flex;align-items:{{sheetAlign}};justify-content:center;padding:{{sheetPad}}">
+      <div onClick="{{eatClick}}" style="background:var(--bg);border:1px solid var(--ln);border-radius:{{sheetRadius}};width:100%;max-width:660px;max-height:88vh;overflow-y:auto;padding:20px 20px 30px;animation:rise .22s ease" data-screen-label="Case detail">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div>
+            <div style="font-weight:800;font-size:20px">{{m.id}} <span style="color:var(--tx2);font-weight:600">{{m.nameSuffix}}</span></div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--acc);letter-spacing:.08em;margin-top:3px">{{m.groupUp}}</div>
+          </div>
+          <button onClick="{{closeModal}}" style="margin-left:auto;width:34px;height:34px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:15px">✕</button>
+        </div>
+        <sc-if value="{{playOn}}" hint-placeholder-val="{{false}}">
+          <div style="max-width:220px;margin:14px auto 0">{{playSvg}}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px">
+            <sc-for list="{{playTokens}}" as="t" hint-placeholder-count="8">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600;padding:4px 8px;border-radius:8px;background:{{t.bg}};color:{{t.co}}">{{t.txt}}</span>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+            <button onClick="{{playReset}}" style="padding:9px 15px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13px;font-weight:600">⟲ reset</button>
+            <button onClick="{{playPrev}}" style="padding:9px 19px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:14px;font-weight:700">◀</button>
+            <button onClick="{{playNext}}" style="padding:9px 19px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:700">▶</button>
+            <button onClick="{{playStop}}" style="padding:9px 15px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx2);font-size:13px;font-weight:600">close</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{playOff}}" hint-placeholder-val="{{true}}">
+          <div style="max-width:190px;margin:14px auto 0">{{m.svg}}</div>
+        </sc-if>
+        <sc-if value="{{m.hint}}" hint-placeholder-val="{{false}}">
+          <p style="color:var(--tx2);font-size:13.5px;line-height:1.5;text-align:center;margin:12px auto 0;max-width:440px">{{m.hint}}</p>
+        </sc-if>
+        <div style="display:flex;gap:7px;justify-content:center;margin-top:16px;flex-wrap:wrap">
+          <sc-for list="{{m.statusOpts}}" as="s" hint-placeholder-count="4">
+            <button onClick="{{s.pick}}" style="padding:8px 14px;border-radius:99px;border:1.5px solid {{s.bd}};background:{{s.bg}};color:{{s.co}};font-size:13px;font-weight:700">{{s.label}}</button>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+          <sc-for list="{{m.algs}}" as="a" hint-placeholder-count="2">
+            <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <button onClick="{{a.makePref}}" title="Set as my main algorithm" style="border:none;background:none;font-size:17px;color:{{a.starCo}};padding:2px">★</button>
+                <div style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;line-height:1.9;user-select:text">
+                  <sc-for list="{{a.segs}}" as="g" hint-placeholder-count="3"><span title="{{g.title}}" style="color:{{g.co}};border-bottom:{{g.bb}};padding-bottom:1px;margin-right:9px;white-space:nowrap">{{g.txt}}</span></sc-for>
+                </div>
+                <button onClick="{{a.play}}" style="padding:7px 13px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:12.5px;font-weight:700;flex-shrink:0">▶ play</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{m.ft}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex;gap:10px;margin-top:12px;background:var(--accsf);border-radius:13px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:800;color:var(--acc);letter-spacing:.06em;flex-shrink:0;margin-top:1px">FINGERS</div>
+            <div style="font-size:13.5px;line-height:1.5;color:var(--tx)">{{m.ft}}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{m.legendOn}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;padding:0 4px">
+            <sc-for list="{{m.legend}}" as="l" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)"><span style="width:14px;height:3px;border-radius:2px;background:{{l.co}};display:inline-block"></span>{{l.label}}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px;background:var(--sf);border:1px dashed var(--ln);border-radius:13px;padding:11px 14px">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:700;color:var(--tx2);letter-spacing:.08em">SETUP SCRAMBLE</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;margin-top:3px;user-select:text">{{m.setup}}</div>
+          </div>
+          <button onClick="{{m.toTimer}}" style="padding:8px 14px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:12.5px;font-weight:700;flex-shrink:0">Drill in timer</button>
+        </div>
+        <sc-if value="{{m.acc}}" hint-placeholder-val="{{false}}">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tx2);margin-top:12px;text-align:center">{{m.acc}}</div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(r){r.update();}).catch(function(){});});}
+</script>
+</body>
+</html>

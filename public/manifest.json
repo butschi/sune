@@ -1,0 +1,23 @@
+{
+ "name": "SUNE — CFOP Trainer",
+ "short_name": "SUNE",
+ "description": "Learn and perfect the CFOP speedcubing method: algorithms, finger tricks, recognition drills, scrambler and timer.",
+ "start_url": ".",
+ "scope": ".",
+ "display": "standalone",
+ "background_color": "#17141c",
+ "theme_color": "#17141c",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
