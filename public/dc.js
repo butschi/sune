@@ -113,10 +113,13 @@
       BIND.lastIndex = 0;
       if (!BIND.test(text) && !text.trim()) return [];
       return toParts(text).map(function (p) {
-        if (typeof p === 'string') return function () { return p; };
+        if (typeof p === 'string') return function (sc, vals) {
+          return vals.__tr ? vals.__tr(p) : p;
+        };
         return function (sc, vals) {
           var v = resolvePath(p.e, sc, vals);
-          return v == null ? null : v;
+          if (v == null) return null;
+          return (typeof v === 'string' && vals.__tr) ? vals.__tr(v) : v;
         };
       });
     }
@@ -158,6 +161,15 @@
         continue;
       }
       var propName = EVENT_MAP[n] || (n === 'class' ? 'className' : n);
+      if (propName === 'title') { // tooltips run through the translation map
+        dynProps.push(['title', (function (f) {
+          return function (sc, vals) {
+            var v = f(sc, vals);
+            return (typeof v === 'string' && vals.__tr) ? vals.__tr(v) : v;
+          };
+        })(compileValue(at.value))]);
+        continue;
+      }
       BIND.lastIndex = 0;
       if (BIND.test(at.value)) dynProps.push([propName, compileValue(at.value)]);
       else staticProps[propName] = at.value;
