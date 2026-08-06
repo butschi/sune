@@ -41,7 +41,7 @@ class Component extends DCLogic {
     cat.oll2=A.oll2.edges.map(e=>({uid:'eo'+e.id.replace(/\s/g,''),set:'oll2',id:e.id,name:e.name,group:'Edge orientation',algs:e.algs,hint:e.hint,viz:'eoll'}))
       .concat(A.oll2.corners.map(byOll));
     cat.pll2=A.pll2.corners.map(byPll).concat(A.pll2.edges.map(byPll));
-    this.cat=cat; this._svgs={};
+    this.cat=cat; this._svgs={}; this._svgsA={};
     let saved={}; try{ saved=JSON.parse(localStorage.getItem('sune-cfop-v1'))||{}; }catch(e){}
     const st={ready:true};
     ['theme','lang','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
@@ -88,6 +88,21 @@ class Component extends DCLogic {
     const C=window.CUBE, st=C.caseState(it.algs[0]);
     const svg = it.viz==='iso'?C.svgIso(st):C.svgTop(st,it.viz);
     return this._svgs[it.uid]=this.el(svg);
+  }
+  // PLL diagrams with piece-movement arrows (Learn cards + modal; quiz stays plain).
+  // Some standard algs end with a net U-layer offset; append the AUF that moves the
+  // fewest pieces so the diagram shows the canonical case (e.g. Z perm: edges only).
+  svgArrows(it){
+    if(it.viz!=='pll') return this.svgFor(it);
+    if(this._svgsA[it.uid]) return this._svgsA[it.uid];
+    const C=window.CUBE;
+    let best=null,bestAr=null,bn=Infinity;
+    ['',' U',' U2'," U'"].forEach(a=>{
+      const alg=it.algs[0]+a, ar=C.arrowsFor(alg);
+      const n=ar.reduce((s,x)=>s+(x.double?2:1),0);
+      if(n<bn){ bn=n; best=alg; bestAr=ar; }
+    });
+    return this._svgsA[it.uid]=this.el(C.svgTop(C.caseState(best),'pll',bestAr));
   }
   allItems(){ return this.cat.f2l.concat(this.cat.oll,this.cat.pll); }
   find(uid){ return this.allItems().concat(this.cat.oll2).find(i=>i.uid===uid); }
@@ -281,7 +296,7 @@ class Component extends DCLogic {
       v.pctKnown=(counts[3]/tot*100).toFixed(1); v.pctLearn=(counts[2]/tot*100).toFixed(1); v.pctWant=(counts[1]/tot*100).toFixed(1);
       v.learnItems=items.filter(it=>s.stFilter<0||(s.status[it.uid]||0)===s.stFilter).map(it=>{
         const st=s.status[it.uid]||0, meta=this.stMeta(st);
-        return { id:it.id, name:it.name, svg:this.svgFor(it), dot:st===0?'transparent':meta.co,
+        return { id:it.id, name:it.name, svg:this.svgArrows(it), dot:st===0?'transparent':meta.co,
           stLabel:meta.label, stCo:meta.co,
           open:()=>this.openCase(it.uid),
           cycle:(e)=>{ e.stopPropagation(); this.setStatus(it.uid,(st+1)%4); } };
@@ -304,7 +319,7 @@ class Component extends DCLogic {
             play:()=>this.setState({play:{alg,step:0}}) };
         });
         const qs=s.qstats[it.uid];
-        v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+this.tr(it.name):'', groupUp:(this.tr(it.group)||'').toUpperCase(), svg:this.svgFor(it),
+        v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+this.tr(it.name):'', groupUp:(this.tr(it.group)||'').toUpperCase(), svg:this.svgArrows(it),
           hint:it.hint||null, ft:it.ft||null, algs, setup,
           legendOn:Object.keys(trigsFound).length>0,
           legend:Object.keys(trigsFound).map(k=>({co:this.trigCo(k),label:trigsFound[k]})),

@@ -9,6 +9,8 @@ window.L10N = { de: {
 "loading cube engine…": "lade Cube-Engine…",
 "Toggle dark / light": "Dunkel / Hell umschalten",
 "Language": "Sprache",
+"Back": "Zurück",
+"Forward": "Weiter",
 
 // ---- learn: sets, status ----
 "Cross": "Kreuz",

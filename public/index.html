@@ -410,7 +410,11 @@ select{font-family:inherit}
           <button onClick="{{closeModal}}" style="margin-left:auto;width:34px;height:34px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:15px">✕</button>
         </div>
         <sc-if value="{{playOn}}" hint-placeholder-val="{{false}}">
-          <div style="max-width:220px;margin:14px auto 0">{{playSvg}}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px">
+            <button onClick="{{playPrev}}" title="Back" style="width:52px;height:52px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:20px;flex-shrink:0">◀</button>
+            <div style="width:200px">{{playSvg}}</div>
+            <button onClick="{{playNext}}" title="Forward" style="width:52px;height:52px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:20px;flex-shrink:0">▶</button>
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px">
             <sc-for list="{{playTokens}}" as="t" hint-placeholder-count="8">
               <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600;padding:4px 8px;border-radius:8px;background:{{t.bg}};color:{{t.co}}">{{t.txt}}</span>
@@ -418,8 +422,6 @@ select{font-family:inherit}
           </div>
           <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
             <button onClick="{{playReset}}" style="padding:9px 15px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13px;font-weight:600">⟲ reset</button>
-            <button onClick="{{playPrev}}" style="padding:9px 19px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:14px;font-weight:700">◀</button>
-            <button onClick="{{playNext}}" style="padding:9px 19px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:700">▶</button>
             <button onClick="{{playStop}}" style="padding:9px 15px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);color:var(--tx2);font-size:13px;font-weight:600">close</button>
           </div>
         </sc-if>

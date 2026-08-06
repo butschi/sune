@@ -48,8 +48,22 @@ function caseState(alg,pre){let s=apply(solved(),invert(alg));if(pre)s=apply(s,p
 const COL={U:'#ffd23f',D:'#f2f2f5',F:'#2fbd5d',B:'#3d86f5',R:'#ee4646',L:'#ff9438'};
 const GRAY='var(--ck-gray,#5a5a66)';
 const LINE='var(--ck-line,#15151a)';
+// ---- piece-movement arrows for PLL diagrams
+// applying alg maps sticker at old position X[i] to position i, so executing the
+// alg on the case state moves the U-face piece at cell X[i] to cell i
+function arrowsFor(alg){
+ let id=[];for(let i=0;i<54;i++)id.push(i);
+ const X=apply(id,alg),moves=[];
+ for(let i=0;i<9;i++){ if(i===4)continue; const j=X[i]; if(j!==i&&j<9&&j!==4)moves.push([j,i]); }
+ const out=[],done={};
+ moves.forEach(m=>{const a=m[0],b=m[1];
+  if(done[a+'>'+b])return;
+  const rev=moves.some(n=>n[0]===b&&n[1]===a);
+  if(rev){ out.push({a:Math.min(a,b),b:Math.max(a,b),double:true}); done[a+'>'+b]=done[b+'>'+a]=1; }
+  else { out.push({a,b,double:false}); done[a+'>'+b]=1; }});
+ return out;}
 // ---- top view (OLL/PLL). mode: 'pll' full colors, 'oll' yellow/gray, 'eoll' edges only
-function svgTop(state,mode){
+function svgTop(state,mode,arrows){
  let out='';
  const cf=(i,kind)=>{if(mode==='pll')return COL[state[i]];
   if(mode==='eoll'&&kind==='c')return GRAY;
@@ -62,6 +76,16 @@ function svgTop(state,mode){
   if(horiz)rect(v,fixed,s,t,cf(id,kind));else rect(fixed,v,t,s,cf(id,kind));});
  strip([47,46,45],true,0); strip([18,19,20],true,B+5);
  strip([36,37,38],false,0); strip([11,10,9],false,B+5);
+ if(arrows&&arrows.length){
+  const ctr=i=>[o+(i%3)*(s+g)+s/2, o+((i/3)|0)*(s+g)+s/2];
+  const head=(tx,ty,ux,uy)=>{const H=8.5,W=8,px=-uy,py=ux;
+   out+='<polygon points="'+tx.toFixed(1)+','+ty.toFixed(1)+' '+(tx-ux*H+px*W/2).toFixed(1)+','+(ty-uy*H+py*W/2).toFixed(1)+' '+(tx-ux*H-px*W/2).toFixed(1)+','+(ty-uy*H-py*W/2).toFixed(1)+'" fill="'+LINE+'"/>';};
+  arrows.forEach(ar=>{
+   const p=ctr(ar.a),q=ctr(ar.b),dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L;
+   const back=ar.double?11:4;
+   out+='<line x1="'+(p[0]+ux*back).toFixed(1)+'" y1="'+(p[1]+uy*back).toFixed(1)+'" x2="'+(q[0]-ux*11).toFixed(1)+'" y2="'+(q[1]-uy*11).toFixed(1)+'" stroke="'+LINE+'" stroke-width="4.5" stroke-linecap="round" opacity="0.92"/>';
+   head(q[0]-ux*3,q[1]-uy*3,ux,uy);
+   if(ar.double)head(p[0]+ux*3,p[1]+uy*3,-ux,-uy);});}
  const tot=B+5+t;
  return '<svg viewBox="0 0 '+tot+' '+tot+'" xmlns="http://www.w3.org/2000/svg">'+out+'</svg>';}
 // ---- isometric view: U, F, R faces
@@ -115,5 +139,5 @@ function segments(alg){
   else{if(out.length&&!out[out.length-1].trig){out[out.length-1].txt+=' '+T[i];}
    else out.push({txt:T[i],trig:null,label:null});i++;}}
  return out;}
-window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,svgTop,svgIso,svgNet,scramble,segments,movePlan,COL,TRIGS,stickers};
+window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,TRIGS,stickers};
 })();
