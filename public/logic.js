@@ -1,6 +1,7 @@
 class Component extends DCLogic {
   state = {
     ready:false, theme:'dark', wide:false, tab:'learn',
+    lang:(typeof navigator!=='undefined'&&(navigator.language||'').toLowerCase().indexOf('de')===0)?'de':'en',
     set:'oll', stFilter:-1, modal:null, play:null,
     qcfg:{sets:{oll:true,pll:true,f2l:false},scope:'all',mode:'name',timed:false}, quiz:null,
     tmode:'random', tcaseSet:'oll', tcase:null, scr:'', showPreview:false, inspection:false,
@@ -43,15 +44,15 @@ class Component extends DCLogic {
     this.cat=cat; this._svgs={};
     let saved={}; try{ saved=JSON.parse(localStorage.getItem('sune-cfop-v1'))||{}; }catch(e){}
     const st={ready:true};
-    ['theme','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
+    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
     if(saved.sessions&&saved.sessions.length) st.sessions=saved.sessions;
     if(saved.qcfg) st.qcfg=Object.assign({},this.state.qcfg,saved.qcfg);
     st.cur=Math.min(st.cur||0,(st.sessions||this.state.sessions).length-1);
-    this.setState(st,()=>this.newScr());
+    this.setState(st,()=>{ this.newScr(); document.documentElement.lang=this.state.lang; });
   }
   persist(){
     const s=this.state;
-    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg})); }catch(e){}
+    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg})); }catch(e){}
   }
   cube3d(state,anim){
     const C=window.CUBE,S=32,kids=[];
@@ -94,7 +95,15 @@ class Component extends DCLogic {
     {label:'NEW',co:'var(--tx2)'},{label:'WANT',co:'var(--info)'},
     {label:'LEARNING',co:'var(--warn)'},{label:'KNOWN',co:'var(--good)'}][v||0]; }
   setStatus(uid,v){ const status=Object.assign({},this.state.status); status[uid]=v; this.setState({status},()=>this.persist()); }
-  lbl(it){ return it.name?it.id+' · '+it.name:it.id; }
+  lbl(it){ return it.name?it.id+' · '+this.tr(it.name):it.id; }
+  tr(s){
+    if(s==null||typeof s!=='string') return s;
+    const L=this.state.lang;
+    if(L==='en'||!window.L10N||!window.L10N[L]) return s;
+    const m=s.match(/^(\s*)([\s\S]*?)(\s*)$/), hit=window.L10N[L][m[2]];
+    return hit!==undefined? m[1]+hit+m[3] : s;
+  }
+  trf(key,vars){ let s=this.tr(key); for(const k in vars) s=s.replace('{'+k+'}',vars[k]); return s; }
   chip(active){ return active?{bg:'var(--accsf)',bd:'var(--acc)',co:'var(--tx)'}:{bg:'var(--sf)',bd:'var(--ln)',co:'var(--tx2)'}; }
   trigCo(t){ return {sexy:'var(--info)',invsexy:'var(--good)',sledge:'var(--warn)',hedge:'var(--acc)'}[t]; }
   // ---------- timer ----------
@@ -242,6 +251,10 @@ class Component extends DCLogic {
     const v={ theme:s.theme, wide:s.wide, narrow:!s.wide, loading:!s.ready,
       themeGlyph:s.theme==='dark'?'◐':'◑',
       toggleTheme:()=>this.setState({theme:s.theme==='dark'?'light':'dark'},()=>this.persist()),
+      __tr:(x)=>this.tr(x),
+      langLabel:s.lang==='de'?'DE':'EN',
+      toggleLang:()=>{ const lang=s.lang==='de'?'en':'de';
+        this.setState({lang},()=>{ this.persist(); document.documentElement.lang=lang; }); },
       isLearn:s.ready&&s.tab==='learn', isDrill:s.ready&&s.tab==='drill', isTimer:s.ready&&s.tab==='timer',
       isGuide:s.ready&&s.tab==='guide', isStats:s.ready&&s.tab==='stats',
       modalOn:false, playOn:false, playOff:true, m:{}, quizTimed:false };
@@ -254,7 +267,7 @@ class Component extends DCLogic {
     const setDefs=[['f2l','F2L'],['oll','OLL'],['pll','PLL'],['oll2','2-Look OLL'],['pll2','2-Look PLL'],['cross','Cross']];
     v.setChips=setDefs.map(d=>Object.assign({label:d[1],pick:()=>this.setState({set:d[0],stFilter:-1})},this.chip(s.set===d[0])));
     v.isCross=s.set==='cross'; v.notCross=!v.isCross;
-    v.setIntro=s.set==='oll2'?A.oll2.intro:(s.set==='pll2'?A.pll2.intro+' '+A.pll2.cornersHint:(s.set==='cross'?A.cross.intro:null));
+    v.setIntro=s.set==='oll2'?this.tr(A.oll2.intro):(s.set==='pll2'?this.tr(A.pll2.intro)+' '+this.tr(A.pll2.cornersHint):(s.set==='cross'?this.tr(A.cross.intro):null));
     v.crossTips=A.cross.tips.map((t,i)=>({num:'0'+(i+1),title:t[0],body:t[1]}));
     if(v.notCross){
       const items=this.cat[s.set]||[];
@@ -291,7 +304,7 @@ class Component extends DCLogic {
             play:()=>this.setState({play:{alg,step:0}}) };
         });
         const qs=s.qstats[it.uid];
-        v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+it.name:'', groupUp:(it.group||'').toUpperCase(), svg:this.svgFor(it),
+        v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+this.tr(it.name):'', groupUp:(this.tr(it.group)||'').toUpperCase(), svg:this.svgFor(it),
           hint:it.hint||null, ft:it.ft||null, algs, setup,
           legendOn:Object.keys(trigsFound).length>0,
           legend:Object.keys(trigsFound).map(k=>({co:this.trigCo(k),label:trigsFound[k]})),
@@ -301,7 +314,7 @@ class Component extends DCLogic {
           toTimer:()=>{ if(it.set==='f2l'||it.set==='oll'||it.set==='pll'){
               this.setState({modal:null,tab:'timer',tmode:'case',tcaseSet:it.set,tcase:it.uid},()=>this.newScr());
             } else this.setState({modal:null,tab:'timer'}); },
-          acc:qs?('drill record: '+qs.c+'/'+qs.a+' correct'):null };
+          acc:qs?this.trf('drill record: {c}/{a} correct',{c:qs.c,a:qs.a}):null };
         if(s.play){
           v.playOn=true; v.playOff=false;
           const tokens=C.parseAlg(s.play.alg);
@@ -335,7 +348,7 @@ class Component extends DCLogic {
       label:d[1], pick:()=>this.setState({qcfg:Object.assign({},s.qcfg,{mode:d[0]==='timed'?'name':d[0],timed:d[0]==='timed'})},()=>this.persist())},
       this.chip(d[0]==='timed'?s.qcfg.timed:(s.qcfg.mode===d[0]&&!s.qcfg.timed))));
     const pool=this.quizPool();
-    v.qPoolLabel=pool.length+' cases in pool';
+    v.qPoolLabel=this.trf('{n} cases in pool',{n:pool.length});
     v.qStartDisabled=pool.length<2;
     v.qStartBg=pool.length<2?'var(--sf2)':'var(--acc)';
     v.startQuiz=()=>this.startQuiz();
@@ -358,7 +371,7 @@ class Component extends DCLogic {
           bg:isRight?'color-mix(in srgb, var(--good) 14%, var(--sf))':(isPick?'color-mix(in srgb, var(--bad) 12%, var(--sf))':'var(--sf)'),
           co:'var(--tx)', pick:()=>this.pickOpt(i) };
       });
-      v.quizFb=q.picked===null?'':(q.ok?['Nice.','Clean.','That’s it.','Instant.'][q.qnum%4]:(q.picked===-1?'Time! It was '+q.target.id+'.':'It was '+this.lbl(q.target)));
+      v.quizFb=q.picked===null?'':(q.ok?['Nice.','Clean.','That’s it.','Instant.'][q.qnum%4]:(q.picked===-1?this.trf('Time! It was {c}.',{c:q.target.id}):this.trf('It was {c}',{c:this.lbl(q.target)})));
       v.quizFbCo=q.ok?'var(--good)':'var(--bad)';
       v.quizNextOn=q.picked!==null;
       v.quizNext=()=>{ clearTimeout(this._auto); this.nextQ(); };
@@ -430,7 +443,7 @@ class Component extends DCLogic {
       const items=this.cat[d[0]], c=[0,0,0,0];
       items.forEach(it=>c[s.status[it.uid]||0]++);
       const tot=items.length;
-      return { label:d[1], counts:c[3]+' / '+tot+' known',
+      return { label:d[1], counts:this.trf('{k} / {n} known',{k:c[3],n:tot}),
         k:(c[3]/tot*100).toFixed(1), l:(c[2]/tot*100).toFixed(1), w:(c[1]/tot*100).toFixed(1),
         go:()=>this.setState({tab:'learn',set:d[0],stFilter:-1}) };
     });

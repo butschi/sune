@@ -1,7 +1,8 @@
-const CACHE = 'sune-v4';
+const CACHE = 'sune-v5';
 const ASSETS = [
   './',
   'index.html',
+  'de.js',
   'dc.js',
   'logic.js',
   'cube.js',
