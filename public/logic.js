@@ -22,6 +22,14 @@ class Component extends DCLogic {
     window.removeEventListener('keydown',this._kd); window.removeEventListener('keyup',this._ku);
     clearInterval(this._run); clearInterval(this._insp); clearTimeout(this._hold); clearInterval(this._qt); clearTimeout(this._pt); clearTimeout(this._auto);
   }
+  componentDidUpdate(prevProps,prevState){
+    // iOS ignores overflow:hidden on body, so lock background scroll with position:fixed
+    const open=!!this.state.modal, was=!!prevState.modal;
+    if(open===was) return;
+    const b=document.body.style;
+    if(open){ this._scrollY=window.scrollY; b.position='fixed'; b.top=(-this._scrollY)+'px'; b.left='0'; b.right='0'; b.width='100%'; }
+    else { b.position=''; b.top=''; b.left=''; b.right=''; b.width=''; window.scrollTo(0,this._scrollY||0); }
+  }
   boot(){
     const C=window.CUBE, A=window.ALGS;
     const cat={};
@@ -276,7 +284,8 @@ class Component extends DCLogic {
         const trigsFound={};
         const algs=it.algs.map((alg,i)=>{
           const segs=C.segments(alg).map(g=>{ if(g.trig) trigsFound[g.trig]=g.label;
-            return { txt:g.txt, title:g.label||'', co:g.trig?this.trigCo(g.trig):'var(--tx)', bb:g.trig?('2px solid '+this.trigCo(g.trig)):'none' }; });
+            return { txt:g.txt, title:g.label||'', co:g.trig?this.trigCo(g.trig):'var(--tx)', bb:g.trig?('2px solid '+this.trigCo(g.trig)):'none',
+              ws:g.trig?'nowrap':'normal' }; });
           return { segs, starCo:i===Math.min(pref,it.algs.length-1)?'var(--warn)':'var(--ln)',
             makePref:()=>{ const p=Object.assign({},s.pref); p[it.uid]=i; this.setState({pref:p},()=>this.persist()); },
             play:()=>this.setState({play:{alg,step:0}}) };
