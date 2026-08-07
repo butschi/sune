@@ -45,6 +45,20 @@ function apply(st,alg){let s=st;parseAlg(alg).forEach(t=>{s=applyToken(s,t);});r
 function invert(alg){return parseAlg(alg).reverse().map(t=>
  t.includes('2')?t.replace(/'/g,''):(t.includes("'")?t.replace("'",''):t+"'")).join(' ');}
 function caseState(alg,pre){let s=apply(solved(),invert(alg));if(pre)s=apply(s,pre);return s;}
+// ---- case-solved predicates, shared by the app and the alg tests
+function f2lIntact(st){
+ for(let i=27;i<36;i++)if(st[i]!=='D')return false;
+ for(const off of [9,18,36,45]){const c=st[off+4];for(let k=3;k<9;k++)if(st[off+k]!==c)return false;}
+ return true;}
+// kind: 'pll' solved up to final AUF/rotation; 'oll' top oriented + F2L intact;
+// 'oll2' top edges oriented + F2L intact; anything else ('f2l') F2L intact
+function caseSolved(kind,st){
+ if(kind==='pll'){for(let f=0;f<6;f++){const o=f*9;for(let i=1;i<9;i++)if(st[o+i]!==st[o])return false;}
+  return st[0]==='U'&&st[27]==='D';}
+ if(!f2lIntact(st))return false;
+ if(kind==='oll'){for(let i=0;i<9;i++)if(st[i]!=='U')return false;return true;}
+ if(kind==='oll2')return st[1]==='U'&&st[3]==='U'&&st[5]==='U'&&st[7]==='U';
+ return true;}
 const COL={U:'#ffd23f',D:'#f2f2f5',F:'#2fbd5d',B:'#3d86f5',R:'#ee4646',L:'#ff9438'};
 const GRAY='var(--ck-gray,#5a5a66)';
 const LINE='var(--ck-line,#15151a)';
@@ -139,5 +153,5 @@ function segments(alg){
   else{if(out.length&&!out[out.length-1].trig){out[out.length-1].txt+=' '+T[i];}
    else out.push({txt:T[i],trig:null,label:null});i++;}}
  return out;}
-window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,TRIGS,stickers};
+window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,TRIGS,stickers};
 })();

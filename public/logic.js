@@ -111,26 +111,43 @@ class Component extends DCLogic {
       if(q) this.setState({play:{alg:q.alg,step:q.step+dir,anim:null}}); },Math.abs(plan.deg)>90?520:360);
   }
   el(html,style){ return React.createElement('div',{style:style||{width:'100%'},dangerouslySetInnerHTML:{__html:html}}); }
+  prefIdx(it){ return Math.min(this.state.pref[it.uid]||0,it.algs.length-1); }
+  prefAlg(it){ return it.algs[this.prefIdx(it)]; }
+  // The starred alg defines the orientation shown in diagrams and setups; every
+  // other alg gets the AUF that makes it solve from that exact position. Returns
+  // that prefix move, or null if the alg already fits. Re-starring recomputes all.
+  algAdjust(it,i){
+    const C=window.CUBE, p=this.prefIdx(it);
+    if(i===p) return null;
+    const base=C.caseState(it.algs[p]);
+    for(const u of ['','U','U2',"U'"]){
+      if(C.caseSolved(it.set,C.apply(base,u?u+' '+it.algs[i]:it.algs[i]))) return u||null;
+    }
+    return null;
+  }
+  // Diagrams follow the starred alg (cache key includes it).
   svgFor(it){
-    if(this._svgs[it.uid]) return this._svgs[it.uid];
-    const C=window.CUBE, st=C.caseState(it.algs[0]);
+    const alg=this.prefAlg(it), key=it.uid+'§'+alg;
+    if(this._svgs[key]) return this._svgs[key];
+    const C=window.CUBE, st=C.caseState(alg);
     const svg = it.viz==='iso'?C.svgIso(st):C.svgTop(st,it.viz);
-    return this._svgs[it.uid]=this.el(svg);
+    return this._svgs[key]=this.el(svg);
   }
   // PLL diagrams with piece-movement arrows (Learn cards + modal; quiz stays plain).
   // Some standard algs end with a net U-layer offset; append the AUF that moves the
   // fewest pieces so the diagram shows the canonical case (e.g. Z perm: edges only).
   svgArrows(it){
     if(it.viz!=='pll') return this.svgFor(it);
-    if(this._svgsA[it.uid]) return this._svgsA[it.uid];
+    const pa=this.prefAlg(it), key=it.uid+'§'+pa;
+    if(this._svgsA[key]) return this._svgsA[key];
     const C=window.CUBE;
     let best=null,bestAr=null,bn=Infinity;
     ['',' U',' U2'," U'"].forEach(a=>{
-      const alg=it.algs[0]+a, ar=C.arrowsFor(alg);
+      const alg=pa+a, ar=C.arrowsFor(alg);
       const n=ar.reduce((s,x)=>s+(x.double?2:1),0);
       if(n<bn){ bn=n; best=alg; bestAr=ar; }
     });
-    return this._svgsA[it.uid]=this.el(C.svgTop(C.caseState(best),'pll',bestAr));
+    return this._svgsA[key]=this.el(C.svgTop(C.caseState(best),'pll',bestAr));
   }
   allItems(){ return this.cat.f2l.concat(this.cat.oll,this.cat.pll); }
   find(uid){ return this.allItems().concat(this.cat.oll2).find(i=>i.uid===uid); }
@@ -157,7 +174,7 @@ class Component extends DCLogic {
     if(s.tmode==='case'){
       const list=this.cat[s.tcaseSet];
       const it=list.find(i=>i.uid===s.tcase)||list[0];
-      const alg=it.algs[(this.state.pref[it.uid]||0)]||it.algs[0];
+      const alg=this.prefAlg(it);
       scr=(C.invert(alg)+this.aufs()[(Math.random()*4)|0]).trim();
       this.setState({scr,tcase:it.uid},()=>{});
     } else { scr=C.scramble(this.props.scrambleLength??20); this.setState({scr}); }
@@ -341,11 +358,15 @@ class Component extends DCLogic {
         v.modalOn=true;
         const st=s.status[it.uid]||0, pref=s.pref[it.uid]||0;
         const setup=C.invert(it.algs[Math.min(pref,it.algs.length-1)]);
-        const trigsFound={};
-        const algs=it.algs.map((alg,i)=>{
-          const segs=C.segments(alg).map(g=>{ if(g.trig) trigsFound[g.trig]=g.label;
-            return { txt:g.txt, title:g.label||'', co:g.trig?this.trigCo(g.trig):'var(--tx)', bb:g.trig?('2px solid '+this.trigCo(g.trig)):'none',
-              ws:g.trig?'nowrap':'normal' }; });
+        const trigsFound={}; let anyAdjust=false;
+        const adjustLabel='alignment move — not needed once this alg is starred';
+        const algs=it.algs.map((raw,i)=>{
+          const pre=this.algAdjust(it,i), alg=pre?pre+' '+raw:raw;
+          if(pre) anyAdjust=true;
+          const segs=(pre?[{txt:pre,title:adjustLabel,co:'var(--tx2)',bb:'2px dotted var(--tx2)',ws:'nowrap'}]:[])
+            .concat(C.segments(raw).map(g=>{ if(g.trig) trigsFound[g.trig]=g.label;
+              return { txt:g.txt, title:g.label||'', co:g.trig?this.trigCo(g.trig):'var(--tx)', bb:g.trig?('2px solid '+this.trigCo(g.trig)):'none',
+                ws:g.trig?'nowrap':'normal' }; }));
           return { segs, starCo:i===Math.min(pref,it.algs.length-1)?'var(--warn)':'var(--ln)',
             makePref:()=>{ const p=Object.assign({},s.pref); p[it.uid]=i; this.setState({pref:p},()=>this.persist()); },
             play:()=>this.setState({play:{alg,step:0}}) };
@@ -356,8 +377,9 @@ class Component extends DCLogic {
         if(dbest) accParts.push(this.trf('case best: {t}',{t:dbest}));
         v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+this.tr(it.name):'', groupUp:(this.tr(it.group)||'').toUpperCase(), svg:this.svgArrows(it),
           hint:it.hint||null, ft:it.ft||null, algs, setup,
-          legendOn:Object.keys(trigsFound).length>0,
-          legend:Object.keys(trigsFound).map(k=>({co:this.trigCo(k),label:trigsFound[k]})),
+          legendOn:Object.keys(trigsFound).length>0||anyAdjust,
+          legend:Object.keys(trigsFound).map(k=>({co:this.trigCo(k),label:trigsFound[k]}))
+            .concat(anyAdjust?[{co:'var(--tx2)',label:adjustLabel}]:[]),
           statusOpts:[0,1,2,3].map(x=>{ const mm=this.stMeta(x); const on=st===x;
             return { label:mm.label, pick:()=>this.setStatus(it.uid,x),
               bd:on?mm.co:'var(--ln)', bg:on?'var(--sf2)':'var(--sf)', co:on?mm.co:'var(--tx2)' }; }),
@@ -414,7 +436,7 @@ class Component extends DCLogic {
       v.quizCols=s.qcfg.mode==='alg'?'1fr':(s.wide?'1fr 1fr':'1fr');
       v.quizOpts=q.opts.map((o,i)=>{
         const isPick=q.picked===i, isRight=q.picked!==null&&o.uid===q.target.uid;
-        return { label:s.qcfg.mode==='alg'?o.algs[0]:this.lbl(o),
+        return { label:s.qcfg.mode==='alg'?this.prefAlg(o):this.lbl(o),
           ff:s.qcfg.mode==='alg'?"'IBM Plex Mono',monospace":'inherit',
           fs:s.qcfg.mode==='alg'?'13px':'14.5px',
           bd:isRight?'var(--good)':(isPick?'var(--bad)':'var(--ln)'),
