@@ -16,11 +16,19 @@ class Component extends DCLogic {
     this.setState({wide:this._mq.matches});
     this._kd=(e)=>this.onKey(e,true); this._ku=(e)=>this.onKey(e,false);
     window.addEventListener('keydown',this._kd); window.addEventListener('keyup',this._ku);
+    // Keep the screen awake — a mid-solve or mid-drill screen lock loses the moment.
+    // The browser drops the lock whenever the tab is hidden, so reacquire on return.
+    this._wlOn=()=>{ if(document.visibilityState==='visible'&&navigator.wakeLock)
+      navigator.wakeLock.request('screen').then(l=>{ this._wl=l; }).catch(()=>{}); };
+    document.addEventListener('visibilitychange',this._wlOn);
+    this._wlOn();
     this._boot=setInterval(()=>{ if(window.CUBE&&window.ALGS&&window.F2L){ clearInterval(this._boot); this.boot(); } },60);
   }
   componentWillUnmount(){
     clearInterval(this._boot); this._mq.removeEventListener('change',this._onMq);
     window.removeEventListener('keydown',this._kd); window.removeEventListener('keyup',this._ku);
+    document.removeEventListener('visibilitychange',this._wlOn);
+    if(this._wl){ this._wl.release().catch(()=>{}); this._wl=null; }
     clearInterval(this._run); clearInterval(this._insp); clearTimeout(this._hold); clearInterval(this._qt); clearTimeout(this._pt); clearTimeout(this._auto);
   }
   componentDidUpdate(prevProps,prevState){
