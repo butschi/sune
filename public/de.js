@@ -274,7 +274,7 @@ window.L10N = { de: {
 "The most drilled alg in cubing: sexy → F trigger → sexy → F’. Fully regrip-free.": "Der meistgeübte Alg im Cubing: Sexy → F-Trigger → Sexy → F’. Komplett ohne Umgreifen.",
 "M slices with left ring double-flick; the RU version is great one-handed.": "M-Slices mit Doppel-Flick des linken Ringfingers; die RU-Version ist einhändig top.",
 "Same as Ua with U’s reversed — learn them as one pattern.": "Wie Ua mit umgekehrten U-Zügen — lerne beide als ein Muster.",
-"The y mid-alg is real — practice the rotation into the F’ trigger.": "Die y-Rotation mitten im Alg ist real — übe die Drehung in den F’-Trigger hinein.",
+"All R and D moves — no rotation; do every D with the left ring finger.": "Nur R- und D-Züge — keine Rotation; jedes D mit dem linken Ringfinger.",
 "F sandwich + sexy + sledge. All standard triggers, no regrips.": "F-Sandwich + Sexy + Sledge. Nur Standard-Trigger, kein Umgreifen.",
 "Ring-finger M flicks; accent the final U2 M2.": "M-Flicks mit dem Ringfinger; betone das finale U2 M2."
 
