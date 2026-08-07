@@ -478,7 +478,10 @@ select{font-family:inherit}
 </div>
 </script>
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(r){r.update();}).catch(function(){});});}
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(r){r.update();
+  // installed PWAs rarely do a full launch — also check for updates on every resume
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')r.update();});
+}).catch(function(){});});}
 </script>
 </body>
 </html>

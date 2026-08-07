@@ -17,10 +17,18 @@ class Component extends DCLogic {
     this._kd=(e)=>this.onKey(e,true); this._ku=(e)=>this.onKey(e,false);
     window.addEventListener('keydown',this._kd); window.addEventListener('keyup',this._ku);
     // Keep the screen awake — a mid-solve or mid-drill screen lock loses the moment.
-    // The browser drops the lock whenever the tab is hidden, so reacquire on return.
-    this._wlOn=()=>{ if(document.visibilityState==='visible'&&navigator.wakeLock)
-      navigator.wakeLock.request('screen').then(l=>{ this._wl=l; }).catch(()=>{}); };
+    // Native wake lock where it works; iOS home-screen apps reject it before 18.4,
+    // so fall back to a tiny looping video (playback keeps the screen on). Retried
+    // on every tap because iOS also rejects requests made without user activation,
+    // and the OS silently releases the lock whenever the app is hidden.
+    this._wlOn=()=>{
+      if(document.visibilityState!=='visible'){ if(this._wlv) this._wlv.pause(); return; }
+      if(this._wl&&!this._wl.released) return;
+      if(navigator.wakeLock) navigator.wakeLock.request('screen').then(l=>{ this._wl=l; }).catch(()=>this.wakeVideo());
+      else this.wakeVideo();
+    };
     document.addEventListener('visibilitychange',this._wlOn);
+    document.addEventListener('pointerdown',this._wlOn,{passive:true});
     this._wlOn();
     this._boot=setInterval(()=>{ if(window.CUBE&&window.ALGS&&window.F2L){ clearInterval(this._boot); this.boot(); } },60);
   }
@@ -28,7 +36,9 @@ class Component extends DCLogic {
     clearInterval(this._boot); this._mq.removeEventListener('change',this._onMq);
     window.removeEventListener('keydown',this._kd); window.removeEventListener('keyup',this._ku);
     document.removeEventListener('visibilitychange',this._wlOn);
+    document.removeEventListener('pointerdown',this._wlOn);
     if(this._wl){ this._wl.release().catch(()=>{}); this._wl=null; }
+    if(this._wlv){ this._wlv.pause(); this._wlv.remove(); this._wlv=null; }
     clearInterval(this._run); clearInterval(this._insp); clearTimeout(this._hold); clearInterval(this._qt); clearTimeout(this._pt); clearTimeout(this._auto);
   }
   componentDidUpdate(prevProps,prevState){
@@ -38,6 +48,16 @@ class Component extends DCLogic {
     const b=document.body.style;
     if(open){ this._scrollY=window.scrollY; b.position='fixed'; b.top=(-this._scrollY)+'px'; b.left='0'; b.right='0'; b.width='100%'; }
     else { b.position=''; b.top=''; b.left=''; b.right=''; b.width=''; window.scrollTo(0,this._scrollY||0); }
+  }
+  wakeVideo(){
+    if(!this._wlv){
+      const v=document.createElement('video');
+      v.muted=true; v.loop=true; v.setAttribute('playsinline','');
+      v.src='wake.mp4';
+      v.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
+      document.body.appendChild(v); this._wlv=v;
+    }
+    this._wlv.play().catch(()=>{});
   }
   boot(){
     const C=window.CUBE, A=window.ALGS;
@@ -182,7 +202,10 @@ class Component extends DCLogic {
     clearInterval(this._run);
     const ms=Date.now()-this.state.t0;
     const pen=this._inspOver>2?'dnf':(this._inspOver>0?2:0);
-    const sessions=this.state.sessions.map((x,i)=>i===this.state.cur?{name:x.name,solves:x.solves.concat([{ms,pen,scr:this.state.scr,ts:Date.now()}])}:x);
+    const sv={ms,pen,scr:this.state.scr,ts:Date.now()};
+    // tag case-drill times so they never mix into real solve stats
+    if(this.state.tmode==='case'&&this.state.tcase) sv.drill=this.state.tcase;
+    const sessions=this.state.sessions.map((x,i)=>i===this.state.cur?{name:x.name,solves:x.solves.concat([sv])}:x);
     this.setState({tstate:'idle',sessions},()=>{ this.persist(); this.newScr(); });
   }
   onKey(e,down){
@@ -209,6 +232,7 @@ class Component extends DCLogic {
     return this.fmt(mid.reduce((a,b)=>a+b,0)/mid.length);
   }
   best(solves){ const v=solves.map(s=>this.solveMs(s)).filter(isFinite); return v.length?this.fmt(Math.min.apply(null,v)):null; }
+  bestDrill(uid){ const all=[]; this.state.sessions.forEach(x=>x.solves.forEach(sv=>{ if(sv.drill===uid) all.push(sv); })); return this.best(all); }
   mutSolve(idx,fn){
     const sessions=this.state.sessions.map((x,i)=>{
       if(i!==this.state.cur) return x;
@@ -326,7 +350,10 @@ class Component extends DCLogic {
             makePref:()=>{ const p=Object.assign({},s.pref); p[it.uid]=i; this.setState({pref:p},()=>this.persist()); },
             play:()=>this.setState({play:{alg,step:0}}) };
         });
-        const qs=s.qstats[it.uid];
+        const qs=s.qstats[it.uid], accParts=[];
+        if(qs) accParts.push(this.trf('drill record: {c}/{a} correct',{c:qs.c,a:qs.a}));
+        const dbest=this.bestDrill(it.uid);
+        if(dbest) accParts.push(this.trf('case best: {t}',{t:dbest}));
         v.m={ id:it.id, nameSuffix:it.name?'\u00b7 '+this.tr(it.name):'', groupUp:(this.tr(it.group)||'').toUpperCase(), svg:this.svgArrows(it),
           hint:it.hint||null, ft:it.ft||null, algs, setup,
           legendOn:Object.keys(trigsFound).length>0,
@@ -337,7 +364,7 @@ class Component extends DCLogic {
           toTimer:()=>{ if(it.set==='f2l'||it.set==='oll'||it.set==='pll'){
               this.setState({modal:null,tab:'timer',tmode:'case',tcaseSet:it.set,tcase:it.uid},()=>this.newScr());
             } else this.setState({modal:null,tab:'timer'}); },
-          acc:qs?this.trf('drill record: {c}/{a} correct',{c:qs.c,a:qs.a}):null };
+          acc:accParts.length?accParts.join(' · '):null };
         if(s.play){
           v.playOn=true; v.playOff=false;
           const tokens=C.parseAlg(s.play.alg);
@@ -423,7 +450,9 @@ class Component extends DCLogic {
     v.togglePreview=()=>this.setState({showPreview:!s.showPreview});
     v.scrSvg=s.showPreview?this.scrSvgEl():null;
     v.padDown=(e)=>this.padDown(e); v.padUp=()=>this.padUp(); v.padCancel=()=>this.padCancel(); v.noCtx=(e)=>e.preventDefault();
-    const solves=this.session().solves;
+    // case mode shows only the drilled case's times; random mode only real solves
+    const indexed=this.session().solves.map((sv,i)=>({sv,i})).filter(x=>v.tCaseMode?x.sv.drill===s.tcase:!x.sv.drill);
+    const solves=indexed.map(x=>x.sv);
     const lastSv=solves[solves.length-1];
     if(s.tstate==='run'){ v.timeDisp=this.fmt(s.now-s.t0); v.timeCo='var(--tx)'; v.padHint='tap to stop'; v.padBg='var(--sf)'; v.padBd='var(--acc)'; }
     else if(s.tstate==='inspect'){
@@ -440,14 +469,14 @@ class Component extends DCLogic {
       ['MEAN',solves.length?this.fmt(solves.filter(x=>x.pen!=='dnf').reduce((a,b)=>a+this.solveMs(b),0)/Math.max(1,solves.filter(x=>x.pen!=='dnf').length)):'—'],
       ['SOLVES',String(solves.length)]].map(x=>({label:x[0],val:x[1]}));
     v.cur=s.cur;
-    v.sessionOpts=s.sessions.map((x,i)=>({i,label:x.name+' ('+x.solves.length+')'}));
+    v.sessionOpts=s.sessions.map((x,i)=>({i,label:x.name+' ('+x.solves.filter(y=>!y.drill).length+')'}));
     v.sessionPick=(e)=>this.setState({cur:+e.target.value},()=>this.persist());
     v.newSession=()=>{ const sessions=s.sessions.concat([{name:'Session '+(s.sessions.length+1),solves:[]}]);
       this.setState({sessions,cur:sessions.length-1},()=>this.persist()); };
     v.clearSession=()=>{ const sessions=s.sessions.map((x,i)=>i===s.cur?{name:x.name,solves:[]}:x);
       this.setState({sessions},()=>this.persist()); };
-    v.solveRows=solves.map((sv,i)=>({
-      num:'#'+(i+1),
+    v.solveRows=indexed.map(({sv,i},k)=>({
+      num:'#'+(k+1),
       disp:sv.pen==='dnf'?'DNF':this.fmt(this.solveMs(sv))+(sv.pen===2?'+':''),
       co:sv.pen==='dnf'?'var(--bad)':(sv.pen===2?'var(--warn)':'var(--tx)'),
       p2bg:sv.pen===2?'var(--accsf)':'var(--sf2)', dnfbg:sv.pen==='dnf'?'var(--accsf)':'var(--sf2)',
@@ -479,7 +508,7 @@ class Component extends DCLogic {
         return { label:this.lbl(it), svg:this.svgFor(it),
           acc:Math.round(x.rec.c/x.rec.a*100)+'%', open:()=>this.openCase(x.uid) }; }).filter(Boolean);
     v.weakOn=weak.length>0; v.weakRows=weak;
-    const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves));
+    const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves.filter(sv=>!sv.drill)));
     v.globalTstats=[['ALL-TIME BEST',this.best(allSolves)||'—'],['TOTAL SOLVES',String(allSolves.length)],
       ['SESSIONS',String(s.sessions.length)]].map(x=>({label:x[0],val:x[1]}));
     return v;

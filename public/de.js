@@ -112,6 +112,7 @@ window.L10N = { de: {
 "SETUP SCRAMBLE": "SETUP-SCRAMBLE",
 "Drill in timer": "Im Timer üben",
 "drill record: {c}/{a} correct": "Drill-Bilanz: {c}/{a} richtig",
+"case best: {t}": "Case-Bestzeit: {t}",
 "Sexy move": "Sexy Move",
 "Inverse sexy": "Inverse Sexy",
 
