@@ -80,7 +80,7 @@ function arrowsFor(alg){
   else { out.push({a,b,double:false}); done[a+'>'+b]=1; }});
  return out;}
 // ---- top view (OLL/PLL). mode: 'pll' full colors, 'oll' yellow/gray, 'eoll' edges only
-function svgTop(state,mode,arrows){
+function svgTop(state,mode,arrows,thin){
  let out='';
  const cf=(i,kind)=>{if(mode==='pll')return COL[state[i]];
   if(mode==='eoll'&&kind==='c')return GRAY;
@@ -94,15 +94,16 @@ function svgTop(state,mode,arrows){
  strip([47,46,45],true,0); strip([18,19,20],true,B+5);
  strip([36,37,38],false,0); strip([11,10,9],false,B+5);
  if(arrows&&arrows.length){
+  const k=thin?0.62:1; // small icons get proportionally thinner arrows
   const ctr=i=>[o+(i%3)*(s+g)+s/2, o+((i/3)|0)*(s+g)+s/2];
-  const head=(tx,ty,ux,uy)=>{const H=8.5,W=8,px=-uy,py=ux;
+  const head=(tx,ty,ux,uy)=>{const H=8.5*k,W=8*k,px=-uy,py=ux;
    out+='<polygon points="'+tx.toFixed(1)+','+ty.toFixed(1)+' '+(tx-ux*H+px*W/2).toFixed(1)+','+(ty-uy*H+py*W/2).toFixed(1)+' '+(tx-ux*H-px*W/2).toFixed(1)+','+(ty-uy*H-py*W/2).toFixed(1)+'" fill="'+LINE+'"/>';};
   arrows.forEach(ar=>{
    const p=ctr(ar.a),q=ctr(ar.b),dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L;
-   const back=ar.double?11:4;
-   out+='<line x1="'+(p[0]+ux*back).toFixed(1)+'" y1="'+(p[1]+uy*back).toFixed(1)+'" x2="'+(q[0]-ux*11).toFixed(1)+'" y2="'+(q[1]-uy*11).toFixed(1)+'" stroke="'+LINE+'" stroke-width="4.5" stroke-linecap="round" opacity="0.92"/>';
-   head(q[0]-ux*3,q[1]-uy*3,ux,uy);
-   if(ar.double)head(p[0]+ux*3,p[1]+uy*3,-ux,-uy);});}
+   const back=(ar.double?11:4)*k;
+   out+='<line x1="'+(p[0]+ux*back).toFixed(1)+'" y1="'+(p[1]+uy*back).toFixed(1)+'" x2="'+(q[0]-ux*11*k).toFixed(1)+'" y2="'+(q[1]-uy*11*k).toFixed(1)+'" stroke="'+LINE+'" stroke-width="'+(4.5*k)+'" stroke-linecap="round" opacity="0.92"/>';
+   head(q[0]-ux*3*k,q[1]-uy*3*k,ux,uy);
+   if(ar.double)head(p[0]+ux*3*k,p[1]+uy*3*k,-ux,-uy);});}
  const tot=B+5+t;
  return '<svg viewBox="0 0 '+tot+' '+tot+'" xmlns="http://www.w3.org/2000/svg">'+out+'</svg>';}
 // ---- isometric view (F2L): U, F, R faces.

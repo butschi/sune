@@ -171,12 +171,12 @@ class Component extends DCLogic {
   // PLL diagrams with piece-movement arrows (Learn cards + modal; quiz stays plain).
   // Some standard algs end with a net U-layer offset; append the AUF that moves the
   // fewest pieces so the diagram shows the canonical case (e.g. Z perm: edges only).
-  svgArrows(it){
+  svgArrows(it,thin){
     if(it.viz!=='pll') return this.svgFor(it);
-    const da=this.diagAlg(it), key=it.uid+'§'+da;
+    const da=this.diagAlg(it), key=it.uid+'§'+(thin?'t§':'')+da;
     if(this._svgsA[key]) return this._svgsA[key];
     const C=window.CUBE;
-    return this._svgsA[key]=this.el(C.svgTop(C.caseState(da),'pll',C.arrowsFor(da)));
+    return this._svgsA[key]=this.el(C.svgTop(C.caseState(da),'pll',C.arrowsFor(da),thin));
   }
   allItems(){ return this.cat.f2l.concat(this.cat.oll,this.cat.pll); }
   find(uid){ return this.allItems().concat(this.cat.oll2).find(i=>i.uid===uid); }
@@ -391,7 +391,7 @@ class Component extends DCLogic {
       const gOrder=[], gMap={};
       items.filter(it=>s.stFilter<0||(s.status[it.uid]||0)===s.stFilter).forEach(it=>{
         const st=s.status[it.uid]||0, meta=this.stMeta(st);
-        const row={ id:it.id, name:it.name, svg:this.svgArrows(it), alg:this.prefAlg(it), dot:st===0?'transparent':meta.co,
+        const row={ id:it.id, name:it.name, svg:this.svgArrows(it), svgSm:this.svgArrows(it,true), alg:this.prefAlg(it), dot:st===0?'transparent':meta.co,
           stLabel:meta.label, stCo:meta.co,
           open:()=>this.openCase(it.uid),
           cycle:(e)=>{ e.stopPropagation(); this.setStatus(it.uid,(st+1)%4); } };
@@ -506,7 +506,7 @@ class Component extends DCLogic {
       const uniq=Array.from(new Set(q.missed));
       v.quizMissedOn=uniq.length>0;
       v.quizMissed=uniq.map(uid=>{ const it=this.find(uid);
-        return { label:this.lbl(it), svg:this.svgFor(it), open:()=>this.openCase(uid) }; });
+        return { label:this.lbl(it), svg:this.svgArrows(it,true), open:()=>this.openCase(uid) }; });
     }
     // ----- timer -----
     v.tmodeChips=[['random','Random scramble'],['case','Case drill']].map(d=>Object.assign({
@@ -602,7 +602,7 @@ class Component extends DCLogic {
       .filter(x=>x.rec.a>=2&&x.rec.c<x.rec.a)
       .sort((a,b)=>(a.rec.c/a.rec.a)-(b.rec.c/b.rec.a)).slice(0,8)
       .map(x=>{ const it=this.find(x.uid); if(!it) return null;
-        return { label:this.lbl(it), svg:this.svgFor(it),
+        return { label:this.lbl(it), svg:this.svgArrows(it,true),
           acc:Math.round(x.rec.c/x.rec.a*100)+'%', open:()=>this.openCase(x.uid) }; }).filter(Boolean);
     v.weakOn=weak.length>0; v.weakRows=weak;
     // drill-time stats per case, across all sessions (case execution, not full solves)
@@ -626,7 +626,7 @@ class Component extends DCLogic {
         return { it, st, tps };
       }).filter(Boolean)
       .sort((a,b)=>a.tps-b.tps).slice(0,8)
-      .map(x=>({ label:this.lbl(x.it), svg:this.svgFor(x.it), best:this.fmt(x.st.best),
+      .map(x=>({ label:this.lbl(x.it), svg:this.svgArrows(x.it,true), best:this.fmt(x.st.best),
         tps:x.tps.toFixed(1)+' TPS', count:x.st.n+'×',
         open:()=>this.openCase(x.it.uid) }));
     v.drillSlowOn=slow.length>0; v.drillSlowRows=slow;
