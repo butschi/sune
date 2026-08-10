@@ -73,6 +73,8 @@ window.L10N = { de: {
 // ---- timer ----
 "Random scramble": "Zufalls-Scramble",
 "Case drill": "Case-Training",
+"Back to pool": "Zurück zum Pool",
+"Each scramble starts from a solved cube — finish with the starred alg and you're back at solved for the next case.": "Jedes Scramble beginnt am gelösten Würfel — löse mit dem markierten Alg und du bist für den nächsten Case wieder bei gelöst.",
 "15s inspection": "15s Inspektion",
 "on": "an",
 "off": "aus",

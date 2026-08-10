@@ -161,6 +161,36 @@ function movePlan(t){
  const n=rest.includes('2')?2:(rest.includes("'")?3:1);
  const a=AXIS[m],d=DEFS[m];if(!a||!d)return null;
  return {sel:d[0],axis:a[0],deg:a[1]*(n===2?180:(n===3?-90:90))};}
+// ---- merge/cancel adjacent same-face turns ("R' U' U'" -> "R' U2")
+function simplify(alg){
+ let t=parseAlg(alg),changed=true;
+ const val=k=>k.includes('2')?2:(k.includes("'")?3:1);
+ const fc=k=>k.replace(/['2]/g,'');
+ while(changed){
+  changed=false;
+  const out=[];
+  for(const m of t){
+   const prev=out[out.length-1];
+   if(prev&&fc(prev)===fc(m)){
+    out.pop();
+    const v=(val(prev)+val(m))%4;
+    if(v!==0)out.push(fc(m)+(v===2?'2':v===3?"'":''));
+    changed=true;
+   } else out.push(m);
+  }
+  t=out;
+ }
+ return t.join(' ');}
+// ---- case diagram alg + drill scramble (single source of truth for both the
+// case modal's setup scramble and the timer's case-drill scrambles)
+function diagramAlg(alg,kind){
+ if(kind!=='pll')return alg;
+ let best=alg,bn=Infinity;
+ ['',' U',' U2'," U'"].forEach(a=>{
+  const n=arrowsFor(alg+a).reduce((s,x)=>s+(x.double?2:1),0);
+  if(n<bn){bn=n;best=alg+a;}});
+ return best;}
+function drillScramble(alg){return simplify(invert(alg));}
 // ---- scramble (random-move, WCA-style constraints)
 function scramble(len){len=len||20;
  const F=['U','D','R','L','F','B'],AX={U:0,D:0,R:1,L:1,F:2,B:2},S=['',"'",'2'];
@@ -184,5 +214,5 @@ function segments(alg){
   else{if(out.length&&!out[out.length-1].trig){out[out.length-1].txt+=' '+T[i];}
    else out.push({txt:T[i],trig:null,label:null});i++;}}
  return out;}
-window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,grayMask,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,GRAY,TRIGS,stickers};
+window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,grayMask,svgTop,svgIso,svgNet,scramble,simplify,diagramAlg,drillScramble,segments,movePlan,arrowsFor,COL,GRAY,TRIGS,stickers};
 })();

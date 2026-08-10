@@ -92,6 +92,27 @@ suites.forEach(su => {
   });
 });
 
+// 5. drill pipeline properties, for every alg as a potential starred alg:
+//    - simplify() must preserve the cube state and leave no adjacent same-face turns
+//    - the drill scramble must set up exactly the diagram state (what the picture shows)
+//    - executing the diagram alg from that state must return to exactly solved (chaining)
+const SOLVED = JSON.stringify(C.solved());
+const stateOf = a => JSON.stringify(C.apply(C.solved(), a));
+const noAdjacent = a => { const f = C.parseAlg(a).map(t => t.replace(/['2]/g, '')); return !f.some((x, k) => k > 0 && x === f[k - 1]); };
+suites.forEach(su => su.cases.forEach(c => c.algs.forEach((alg, i) => {
+  const id = c.id + ' alg[' + i + ']';
+  checks++;
+  if (stateOf(C.simplify(alg)) !== stateOf(alg)) fail(id + ': simplify changed the cube state');
+  const da = C.diagramAlg(alg, su.kind === 'pll' ? 'pll' : '');
+  const scr = C.drillScramble(da);
+  checks++;
+  if (!noAdjacent(scr)) fail(id + ': scramble has adjacent same-face turns: ' + scr);
+  checks++;
+  if (stateOf(scr) !== JSON.stringify(C.caseState(da))) fail(id + ': scramble does not set up the diagram state');
+  checks++;
+  if (JSON.stringify(C.apply(C.apply(C.solved(), scr), da)) !== SOLVED) fail(id + ': solving from the scramble does not return to solved');
+})));
+
 console.warn = origWarn;
 if (parseWarnings.length) fail('unparseable moves: ' + parseWarnings.join('; '));
 
