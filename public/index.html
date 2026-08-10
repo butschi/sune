@@ -16,6 +16,10 @@ html,body{margin:0;padding:0;background:#17141c}
 a{color:#a878f0}a:hover{color:#c4a4ff}
 button{font-family:inherit;cursor:pointer}
 select{font-family:inherit}
+/* iOS only honors the -webkit- prefixed form — without it, touch-and-hold
+   (e.g. arming the timer) selects the text under the finger */
+#sune, #sune *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#sune .sel, #sune .sel *{-webkit-user-select:text;user-select:text}
 #sune{--bg:#17141c;--sf:#201c28;--sf2:#2b2536;--tx:#f2eff7;--tx2:#9b92ad;--ln:#352d44;--acc:#a878f0;--accsf:#2e2442;--good:#4ecb7d;--warn:#e8b04c;--info:#58b8e8;--bad:#ef6262;--ck-gray:#46404f;--ck-line:#17141c}
 #sune[data-theme="light"]{--bg:#f5f3f8;--sf:#ffffff;--sf2:#eae6f1;--tx:#251f2e;--tx2:#6d6480;--ln:#dcd5e7;--acc:#7c48e0;--accsf:#eadffc;--good:#1f9d55;--warn:#a86f10;--info:#1878a8;--bad:#cc3f3f;--ck-gray:#d4cfde;--ck-line:#2b2536}
 @keyframes pop{0%{transform:scale(.97);opacity:0}100%{transform:scale(1);opacity:1}}
@@ -245,7 +249,7 @@ select{font-family:inherit}
         </sc-if>
         <div style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:14px 16px;margin-top:12px">
           <div style="display:flex;align-items:flex-start;gap:10px">
-            <div style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:15.5px;line-height:1.75;letter-spacing:.03em;user-select:text">{{scr}}</div>
+            <div class="sel" style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:15.5px;line-height:1.75;letter-spacing:.03em;user-select:text">{{scr}}</div>
             <button onClick="{{newScr}}" title="New scramble" style="width:34px;height:34px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:15px">↻</button>
             <button onClick="{{togglePreview}}" title="Show cube preview" style="width:34px;height:34px;border-radius:99px;border:1px solid var(--ln);background:{{prevBg}};color:var(--tx);font-size:13px">⬒</button>
           </div>
@@ -468,7 +472,7 @@ select{font-family:inherit}
             <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:12px 14px">
               <div style="display:flex;align-items:center;gap:10px">
                 <button onClick="{{a.makePref}}" title="Set as my main algorithm" style="border:none;background:none;font-size:17px;color:{{a.starCo}};padding:2px">★</button>
-                <div style="flex:1;min-width:0;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;line-height:1.9;user-select:text">
+                <div class="sel" style="flex:1;min-width:0;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;line-height:1.9;user-select:text">
                   <sc-for list="{{a.segs}}" as="g" hint-placeholder-count="3"><span title="{{g.title}}" style="color:{{g.co}};border-bottom:{{g.bb}};padding-bottom:1px;margin-right:9px;white-space:{{g.ws}}">{{g.txt}}</span></sc-for>
                 </div>
                 <button onClick="{{a.play}}" style="padding:7px 13px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:12.5px;font-weight:700;flex-shrink:0">▶ play</button>
@@ -492,7 +496,7 @@ select{font-family:inherit}
         <div style="display:flex;align-items:center;gap:10px;margin-top:16px;background:var(--sf);border:1px dashed var(--ln);border-radius:13px;padding:11px 14px">
           <div style="flex:1">
             <div style="font-size:11px;font-weight:700;color:var(--tx2);letter-spacing:.08em">SETUP SCRAMBLE</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;margin-top:3px;user-select:text">{{m.setup}}</div>
+            <div class="sel" style="font-family:'IBM Plex Mono',monospace;font-size:13px;margin-top:3px;user-select:text">{{m.setup}}</div>
           </div>
           <button onClick="{{m.toTimer}}" style="padding:8px 14px;border-radius:99px;border:none;background:var(--acc);color:#fff;font-size:12.5px;font-weight:700;flex-shrink:0">Drill in timer</button>
         </div>
