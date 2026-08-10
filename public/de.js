@@ -223,7 +223,7 @@ window.L10N = { de: {
 "Home grip": "Grundgriff",
 "Thumbs on the front, index fingers on top. Both hands hold the bottom two layers lightly — the cube should be able to spin freely.": "Daumen vorn, Zeigefinger oben. Beide Hände halten die unteren zwei Ebenen nur locker — der Würfel muss sich frei drehen können.",
 "U moves": "U-Züge",
-"Right index flicks U’, left index flicks U. Never turn U with your wrist.": "Der rechte Zeigefinger flickt U’, der linke U. Dreh U nie aus dem Handgelenk.",
+"Right index curls U from the back; left index mirrors it for U’. Never turn U with your wrist.": "Der rechte Zeigefinger zieht U von hinten; der linke spiegelt das für U’. Dreh U nie aus dem Handgelenk.",
 "R moves": "R-Züge",
 "Right wrist turns, elbow still. R’ flicks back with the same motion reversed.": "Das rechte Handgelenk dreht, der Ellbogen bleibt ruhig. R’ ist dieselbe Bewegung rückwärts.",
 "D moves": "D-Züge",
