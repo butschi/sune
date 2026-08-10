@@ -4,7 +4,7 @@ class Component extends DCLogic {
     lang:(typeof navigator!=='undefined'&&(navigator.language||'').toLowerCase().indexOf('de')===0)?'de':'en',
     set:'oll', stFilter:-1, view:'cards', modal:null, play:null,
     qcfg:{sets:{oll:true,pll:true,f2l:false},scope:'all',mode:'name',timed:false}, quiz:null,
-    tmode:'random', tcaseSet:'oll', tcase:null, scr:'', showPreview:false, inspection:false,
+    tmode:'random', tfilter:{sets:{},st:{}}, tpin:null, tcase:null, scr:'', showPreview:false, inspection:false,
     tstate:'idle', armed:false, t0:0, now:0, inspStart:0,
     status:{}, pref:{}, qstats:{},
     sessions:[{name:'Session 1', solves:[]}], cur:0
@@ -102,7 +102,8 @@ class Component extends DCLogic {
     this.cat=cat; this._svgs={}; this._svgsA={};
     let saved={}; try{ saved=JSON.parse(localStorage.getItem('sune-cfop-v1'))||{}; }catch(e){}
     const st={ready:true};
-    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase','view'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
+    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tpin','view'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
+    if(saved.tfilter) st.tfilter={sets:Object.assign({},this.state.tfilter.sets,saved.tfilter.sets),st:Object.assign({},this.state.tfilter.st,saved.tfilter.st)};
     if(saved.sessions&&saved.sessions.length) st.sessions=saved.sessions;
     if(saved.qcfg) st.qcfg=Object.assign({},this.state.qcfg,saved.qcfg);
     st.cur=Math.min(st.cur||0,(st.sessions||this.state.sessions).length-1);
@@ -110,7 +111,7 @@ class Component extends DCLogic {
   }
   persist(){
     const s=this.state;
-    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg,view:s.view})); }catch(e){}
+    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tfilter:s.tfilter,tpin:s.tpin,qcfg:s.qcfg,view:s.view})); }catch(e){}
   }
   cube3d(state,anim,grayNoise){
     const C=window.CUBE,S=32,kids=[];
@@ -147,16 +148,7 @@ class Component extends DCLogic {
   // The alg whose caseState the case diagram shows exactly. For PLL that is the
   // starred alg plus the AUF that draws the fewest arrows (canonical case);
   // everywhere else it is the starred alg itself (F2L data is pre-aligned).
-  diagAlg(it){
-    const pa=this.prefAlg(it);
-    if(it.viz!=='pll') return pa;
-    const C=window.CUBE; let best=pa,bn=Infinity;
-    ['',' U',' U2'," U'"].forEach(a=>{
-      const n=C.arrowsFor(pa+a).reduce((s,x)=>s+(x.double?2:1),0);
-      if(n<bn){ bn=n; best=pa+a; }
-    });
-    return best;
-  }
+  diagAlg(it){ return window.CUBE.diagramAlg(this.prefAlg(it), it.viz==='pll'?'pll':''); }
   // Fit algs[i] to the diagram state: the smallest AUF prefix/suffix that makes it
   // solve exactly what the diagram shows. Rows render pre/post dimmed; the player
   // plays `full`, so its start position always matches the diagram.
@@ -204,16 +196,28 @@ class Component extends DCLogic {
   chip(active){ return active?{bg:'var(--accsf)',bd:'var(--acc)',co:'var(--tx)'}:{bg:'var(--sf)',bd:'var(--ln)',co:'var(--tx2)'}; }
   trigCo(t){ return {sexy:'var(--info)',invsexy:'var(--good)',sledge:'var(--warn)',hedge:'var(--acc)'}[t]; }
   // ---------- timer ----------
-  aufs(){ return ['',' U',' U\'',' U2']; }
+  // empty filter group = no restriction: nothing selected means everything
+  drillPool(){
+    const s=this.state, tf=s.tfilter, out=[];
+    const anySet=['f2l','oll','pll'].some(k=>tf.sets[k]);
+    const anySt=[0,1,2,3].some(k=>tf.st[k]);
+    ['f2l','oll','pll'].forEach(k=>{ if(!anySet||tf.sets[k]) out.push.apply(out,this.cat[k]); });
+    return out.filter(it=>!anySt||tf.st[s.status[it.uid]||0]);
+  }
   newScr(){
     const C=window.CUBE; if(!C) return;
     const s=this.state; let scr;
     if(s.tmode==='case'){
-      const list=this.cat[s.tcaseSet];
-      const it=list.find(i=>i.uid===s.tcase)||list[0];
-      const alg=this.prefAlg(it);
-      scr=(C.invert(alg)+this.aufs()[(Math.random()*4)|0]).trim();
-      this.setState({scr,tcase:it.uid},()=>{});
+      const pin=s.tpin?this.find(s.tpin):null;
+      const pool=pin?[pin]:this.drillPool();
+      if(!pool.length){ this.setState({scr:'',tcase:null}); return; }
+      let it=pool[(Math.random()*pool.length)|0];
+      if(pool.length>1&&it.uid===s.tcase) it=pool[(Math.random()*pool.length)|0];
+      // scramble = exact inverse of the diagram alg: starts from a solved cube,
+      // sets up exactly the shown diagram, and solving with the displayed alg
+      // returns to solved — cases chain seamlessly (identical to modal setup)
+      scr=C.drillScramble(this.diagAlg(it));
+      this.setState({scr,tcase:it.uid});
     } else { scr=C.scramble(this.props.scrambleLength??20); this.setState({scr}); }
   }
   scrSvgEl(){
@@ -229,6 +233,7 @@ class Component extends DCLogic {
     if(e&&e.button>0) return;
     const s=this.state;
     if(s.tstate==='run'){ this.finish(); this._justStopped=true; return; }
+    if(s.tmode==='case'&&!s.scr) return;
     if(s.tstate==='idle'&&s.inspection){ this.startInspect(); return; }
     this.beginHold();
   }
@@ -402,7 +407,7 @@ class Component extends DCLogic {
       if(it){
         v.modalOn=true;
         const st=s.status[it.uid]||0, pref=s.pref[it.uid]||0;
-        const setup=C.invert(this.diagAlg(it));
+        const setup=C.drillScramble(this.diagAlg(it));
         const trigsFound={}; let anyAdjust=false;
         const adjustLabel='alignment turn to match the shown position';
         const algs=it.algs.map((raw,i)=>{
@@ -431,7 +436,7 @@ class Component extends DCLogic {
             return { label:mm.label, pick:()=>this.setStatus(it.uid,x),
               bd:on?mm.co:'var(--ln)', bg:on?'var(--sf2)':'var(--sf)', co:on?mm.co:'var(--tx2)' }; }),
           toTimer:()=>{ if(it.set==='f2l'||it.set==='oll'||it.set==='pll'){
-              this.setState({modal:null,tab:'timer',tmode:'case',tcaseSet:it.set,tcase:it.uid},()=>this.newScr());
+              this.setState({modal:null,tab:'timer',tmode:'case',tpin:it.uid,tcase:it.uid},()=>{ this.persist(); this.newScr(); });
             } else this.setState({modal:null,tab:'timer'}); },
           acc:accParts.length?accParts.join(' · '):null };
         if(s.play){
@@ -507,10 +512,25 @@ class Component extends DCLogic {
     v.tmodeChips=[['random','Random scramble'],['case','Case drill']].map(d=>Object.assign({
       label:d[1], pick:()=>this.setState({tmode:d[0]},()=>{ this.persist(); this.newScr(); })},this.chip(s.tmode===d[0])));
     v.tCaseMode=s.tmode==='case';
-    v.tcaseSet=s.tcaseSet; v.tcase=s.tcase||'';
-    v.tcaseSetPick=(e)=>this.setState({tcaseSet:e.target.value,tcase:this.cat[e.target.value][0].uid},()=>{ this.persist(); this.newScr(); });
-    v.tcasePick=(e)=>this.setState({tcase:e.target.value},()=>{ this.persist(); this.newScr(); });
-    v.tcaseOpts=(this.cat[s.tcaseSet]||[]).map(i=>({uid:i.uid,label:this.lbl(i)}));
+    const tf=s.tfilter;
+    v.tfSetChips=[['f2l','F2L'],['oll','OLL'],['pll','PLL']].map(d=>Object.assign({
+      label:d[1], pick:()=>{ const sets=Object.assign({},tf.sets); sets[d[0]]=!sets[d[0]];
+        this.setState({tfilter:{sets,st:tf.st},tpin:null},()=>{ this.persist(); this.newScr(); }); }},this.chip(tf.sets[d[0]])));
+    v.tfStChips=[[0,'New'],[1,'Want'],[2,'Learning'],[3,'Known']].map(d=>Object.assign({
+      label:d[1], dot:this.stMeta(d[0]).co,
+      pick:()=>{ const stf=Object.assign({},tf.st); stf[d[0]]=!stf[d[0]];
+        this.setState({tfilter:{sets:tf.sets,st:stf},tpin:null},()=>{ this.persist(); this.newScr(); }); }},this.chip(tf.st[d[0]])));
+    const tfEmpty=!['f2l','oll','pll'].some(k=>tf.sets[k])&&![0,1,2,3].some(k=>tf.st[k]);
+    const tfAllChip=this.chip(tfEmpty);
+    v.tfAllBd=tfAllChip.bd; v.tfAllBg=tfAllChip.bg; v.tfAllCo=tfAllChip.co;
+    v.tfAll=()=>this.setState({tfilter:{sets:{},st:{}},tpin:null},()=>{ this.persist(); this.newScr(); });
+    const tpool=s.tpin?[this.find(s.tpin)].filter(Boolean):this.drillPool();
+    v.tPoolLabel=this.trf('{n} cases in pool',{n:tpool.length});
+    const tcur=s.tcase?this.find(s.tcase):null;
+    v.tCurOn=!!tcur&&!s.tpin; v.tPinOn=!!s.tpin;
+    v.tCurLabel=tcur?this.lbl(tcur):'';
+    v.tCurOpen=()=>{ if(tcur) this.openCase(tcur.uid); };
+    v.tUnpin=()=>this.setState({tpin:null},()=>{ this.persist(); this.newScr(); });
     const ins=this.chip(s.inspection);
     v.inspBd=ins.bd; v.inspBg=ins.bg; v.inspCo=ins.co; v.inspState=s.inspection?'on':'off';
     v.toggleInspection=()=>this.setState({inspection:!s.inspection},()=>this.persist());
@@ -527,7 +547,7 @@ class Component extends DCLogic {
     v.padRad=zen?'0':'18px'; v.padH=zen?'auto':'220px'; v.padMt=zen?'0':'12px';
     v.padTimeFs=zen?'min(20vw,120px)':'64px';
     // case mode shows only the drilled case's times; random mode only real solves
-    const indexed=this.session().solves.map((sv,i)=>({sv,i})).filter(x=>v.tCaseMode?x.sv.drill===s.tcase:!x.sv.drill);
+    const indexed=this.session().solves.map((sv,i)=>({sv,i})).filter(x=>v.tCaseMode?(s.tpin?x.sv.drill===s.tpin:!!x.sv.drill):!x.sv.drill);
     const solves=indexed.map(x=>x.sv);
     const lastSv=solves[solves.length-1];
     if(s.tstate==='run'){ v.timeDisp=this.fmt(s.now-s.t0); v.timeCo='var(--tx)'; v.padHint='tap to stop'; v.padBg='var(--sf)'; v.padBd='var(--acc)'; }
@@ -553,6 +573,7 @@ class Component extends DCLogic {
       this.setState({sessions},()=>this.persist()); };
     v.solveRows=indexed.map(({sv,i},k)=>({
       num:'#'+(k+1),
+      caseLbl:sv.drill?(this.find(sv.drill)||{id:''}).id:'',
       disp:sv.pen==='dnf'?'DNF':this.fmt(this.solveMs(sv))+(sv.pen===2?'+':''),
       co:sv.pen==='dnf'?'var(--bad)':(sv.pen===2?'var(--warn)':'var(--tx)'),
       p2bg:sv.pen===2?'var(--accsf)':'var(--sf2)', dnfbg:sv.pen==='dnf'?'var(--accsf)':'var(--sf2)',
