@@ -376,13 +376,18 @@ class Component extends DCLogic {
       v.viewCards=s.view!=='list'; v.viewList=s.view==='list';
       v.viewGlyph=s.view==='list'?'▦':'☰';
       v.toggleView=()=>this.setState({view:s.view==='list'?'cards':'list'},()=>this.persist());
-      v.learnItems=items.filter(it=>s.stFilter<0||(s.status[it.uid]||0)===s.stFilter).map(it=>{
+      const gOrder=[], gMap={};
+      items.filter(it=>s.stFilter<0||(s.status[it.uid]||0)===s.stFilter).forEach(it=>{
         const st=s.status[it.uid]||0, meta=this.stMeta(st);
-        return { id:it.id, name:it.name, svg:this.svgArrows(it), alg:this.prefAlg(it), dot:st===0?'transparent':meta.co,
+        const row={ id:it.id, name:it.name, svg:this.svgArrows(it), alg:this.prefAlg(it), dot:st===0?'transparent':meta.co,
           stLabel:meta.label, stCo:meta.co,
           open:()=>this.openCase(it.uid),
           cycle:(e)=>{ e.stopPropagation(); this.setStatus(it.uid,(st+1)%4); } };
+        const t=(this.tr(it.group)||'').toUpperCase();
+        if(!gMap[t]){ gMap[t]=[]; gOrder.push(t); }
+        gMap[t].push(row);
       });
+      v.learnGroups=gOrder.map(t=>({title:t,items:gMap[t]}));
     }
     // ----- modal -----
     if(s.modal){
