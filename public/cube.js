@@ -59,7 +59,10 @@ function caseSolved(kind,st){
  if(kind==='oll'){for(let i=0;i<9;i++)if(st[i]!=='U')return false;return true;}
  if(kind==='oll2')return st[1]==='U'&&st[3]==='U'&&st[5]==='U'&&st[7]==='U';
  return true;}
-const COL={U:'#ffd23f',D:'#f2f2f5',F:'#2fbd5d',B:'#3d86f5',R:'#ee4646',L:'#ff9438'};
+// Standard scheme held yellow-up, red-front: green right, blue left, orange back.
+// (Yellow-up with green front would put orange on the right — a green-front/red-right
+// cube does not exist in reality; getting this wrong mirrors every diagram.)
+const COL={U:'#ffd23f',D:'#f2f2f5',F:'#ee4646',B:'#ff9438',R:'#2fbd5d',L:'#3d86f5'};
 const GRAY='var(--ck-gray,#5a5a66)';
 const LINE='var(--ck-line,#15151a)';
 // ---- piece-movement arrows for PLL diagrams
