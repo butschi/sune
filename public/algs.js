@@ -110,7 +110,7 @@ guide:{
   ['PLL','Permute the last layer: move the pieces to their final spots with 1 of 21 algorithms (or 2-look with 6).','pll']],
  grips:[
   ['Home grip','Thumbs on the front, index fingers on top. Both hands hold the bottom two layers lightly \u2014 the cube should be able to spin freely.'],
-  ['U moves','Right index flicks U\u2019, left index flicks U. Never turn U with your wrist.'],
+  ['U moves','Right index curls U from the back; left index mirrors it for U\u2019. Never turn U with your wrist.'],
   ['R moves','Right wrist turns, elbow still. R\u2019 flicks back with the same motion reversed.'],
   ['D moves','Left ring finger from underneath. Essential for A perms and G perms.'],
   ['M slices','Left ring (or ring+middle for M2) flicking the middle layer from behind. Drill M2 U M2 slowly first.'],

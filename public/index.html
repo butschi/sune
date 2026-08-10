@@ -131,7 +131,7 @@ select{font-family:inherit}
               <div style="display:flex;flex-direction:column;gap:6px">
                 <sc-for list="{{g.items}}" as="it" hint-placeholder-count="6">
                   <div onClick="{{it.open}}" style="display:flex;align-items:center;gap:12px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:8px 12px;cursor:pointer">
-                    <div style="width:46px;flex-shrink:0">{{it.svg}}</div>
+                    <div style="width:46px;flex-shrink:0">{{it.svgSm}}</div>
                     <div style="flex-shrink:0;min-width:76px">
                       <div style="font-weight:700;font-size:13.5px">{{it.id}}</div>
                       <div style="color:var(--tx2);font-size:11.5px">{{it.name}}</div>
@@ -417,6 +417,28 @@ select{font-family:inherit}
             </div>
           </sc-if>
         </div>
+        <sc-if value="{{drillOn}}" hint-placeholder-val="{{false}}">
+          <div>
+            <h2 style="font-size:20px;font-weight:800;margin:0 2px 12px">Drill times</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <sc-for list="{{drillTiles}}" as="s" hint-placeholder-count="2">
+                <div style="flex:1;min-width:110px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:11px 14px;text-align:center">
+                  <div style="font-size:10.5px;font-weight:700;color:var(--tx2);letter-spacing:.1em">{{s.label}}</div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">{{s.val}}</div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{drillSlowOn}}" hint-placeholder-val="{{false}}">
+              <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin:16px 2px 4px">BIGGEST ROOM TO IMPROVE</div>
+              <div style="color:var(--tx2);font-size:12px;line-height:1.5;margin:0 2px 8px">Ranked by turns per second at your best time — a low TPS means the alg has headroom, regardless of its length.</div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{drillSlowRows}}" as="w" hint-placeholder-count="3">
+                  <button onClick="{{w.open}}" style="display:flex;align-items:center;gap:11px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:8px 13px;color:var(--tx);font-size:13.5px;font-weight:600;text-align:left"><span style="width:36px;flex-shrink:0">{{w.svg}}</span>{{w.label}}<span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2)">{{w.count}}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tx2)">{{w.best}}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--warn)">{{w.tps}}</span></button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
         <div>
           <h2 style="font-size:20px;font-weight:800;margin:0 2px 12px">Timing</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
