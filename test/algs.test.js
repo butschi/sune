@@ -39,9 +39,17 @@ const suites = [
 
 suites.forEach(su => {
   su.cases.forEach(c => {
+    // 0. no duplicate algs within a case (AUF-shifted copies collapse after alignment)
+    checks++;
+    if (new Set(c.algs).size !== c.algs.length) fail(c.id + ' has duplicate algs');
     c.algs.forEach((alg, i) => {
       // 1. parses (warnings are collected globally, asserted at the end)
       checks++; C.parseAlg(alg).forEach(t => C.applyToken(C.solved(), t));
+      // 1b. no adjacent same-face turns — "U U' ..." style baking artifacts
+      checks++;
+      const faces = C.parseAlg(alg).map(t => t.replace(/['2]/g, ''));
+      if (faces.some((f, k) => k > 0 && f === faces[k - 1]))
+        fail(c.id + ' alg[' + i + '] has adjacent same-face turns: ' + alg);
       // 2. last-layer algs must not touch F2L: their case state has F2L solved
       if (su.kind !== 'f2l') {
         checks++;
