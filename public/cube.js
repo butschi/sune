@@ -102,17 +102,40 @@ function svgTop(state,mode,arrows){
    if(ar.double)head(p[0]+ux*3,p[1]+uy*3,-ux,-uy);});}
  const tot=B+5+t;
  return '<svg viewBox="0 0 '+tot+' '+tot+'" xmlns="http://www.w3.org/2000/svg">'+out+'</svg>';}
-// ---- isometric view: U, F, R faces
+// ---- isometric view (F2L): U, F, R faces.
+// For recognition only the target pair matters, so last-layer pieces are grayed
+// (any multi-sticker cubie carrying U-color that is not the pair), and the state
+// is AUF-rotated to the angle that shows the most pair stickers on visible faces.
+function cubieGroups(){
+ const groups={};
+ stickers.forEach((st,i)=>{const k=st.p.join(',');(groups[k]=groups[k]||[]).push(i);});
+ return groups;}
+function isoAuf(state){
+ const groups=cubieGroups();
+ const pairVis=st=>{let n=0;for(const k in groups){const idxs=groups[k];
+  const set=idxs.map(i=>st[i]).sort().join('');
+  if(set==='DFR'||set==='FR')n+=idxs.filter(i=>i<27).length;}return n;};
+ let best=state,bn=pairVis(state),s=apply(state,'U');
+ for(let k=1;k<4;k++){const n=pairVis(s);if(n>bn){bn=n;best=s;}s=apply(s,'U');}
+ return best;}
+function isoColors(state){
+ const groups=cubieGroups();
+ const best=isoAuf(state);
+ return best.map((l,i)=>{
+  const idxs=groups[stickers[i].p.join(',')];
+  return (idxs.length>1&&idxs.some(j=>best[j]==='U'))?GRAY:COL[l];});
+}
 function svgIso(state){
  const s=20;let out='';
+ const co=isoColors(state);
  const P=(x,y,z)=>(((x-z)*0.866*s).toFixed(1))+','+((((x+z)*0.5-y)*s).toFixed(1));
  const quad=(c,f)=>{out+='<polygon points="'+c.map(p=>P(p[0],p[1],p[2])).join(' ')+'" fill="'+f+'" stroke="'+LINE+'" stroke-width="1.6" stroke-linejoin="round"/>';};
  for(let r=0;r<3;r++)for(let c=0;c<3;c++)
-  quad([[c,3,r],[c+1,3,r],[c+1,3,r+1],[c,3,r+1]],COL[state[r*3+c]]);
+  quad([[c,3,r],[c+1,3,r],[c+1,3,r+1],[c,3,r+1]],co[r*3+c]);
  for(let r=0;r<3;r++)for(let c=0;c<3;c++)
-  quad([[c,3-r,3],[c+1,3-r,3],[c+1,2-r,3],[c,2-r,3]],COL[state[18+r*3+c]]);
+  quad([[c,3-r,3],[c+1,3-r,3],[c+1,2-r,3],[c,2-r,3]],co[18+r*3+c]);
  for(let r=0;r<3;r++)for(let c=0;c<3;c++)
-  quad([[3,3-r,3-c],[3,3-r,2-c],[3,2-r,2-c],[3,2-r,3-c]],COL[state[9+r*3+c]]);
+  quad([[3,3-r,3-c],[3,3-r,2-c],[3,2-r,2-c],[3,2-r,3-c]],co[9+r*3+c]);
  return '<svg viewBox="-56 -64 112 128" xmlns="http://www.w3.org/2000/svg">'+out+'</svg>';}
 // ---- unfolded net
 function svgNet(state){
@@ -153,5 +176,5 @@ function segments(alg){
   else{if(out.length&&!out[out.length-1].trig){out[out.length-1].txt+=' '+T[i];}
    else out.push({txt:T[i],trig:null,label:null});i++;}}
  return out;}
-window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,TRIGS,stickers};
+window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,TRIGS,stickers};
 })();
