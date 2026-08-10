@@ -121,12 +121,17 @@ function isoAuf(state){
  let best=state,bn=pairVis(state),s=apply(state,'U');
  for(let k=1;k<4;k++){const n=pairVis(s);if(n>bn){bn=n;best=s;}s=apply(s,'U');}
  return best;}
-function isoColors(state){
+// true for stickers of last-layer pieces that are not the target pair — F2L noise
+function grayMask(state){
  const groups=cubieGroups();
- const best=isoAuf(state);
- return best.map((l,i)=>{
+ return state.map((l,i)=>{
   const idxs=groups[stickers[i].p.join(',')];
-  return (idxs.length>1&&idxs.some(j=>best[j]==='U'))?GRAY:COL[l];});
+  return idxs.length>1&&idxs.some(j=>state[j]==='U');});
+}
+function isoColors(state){
+ const best=isoAuf(state);
+ const m=grayMask(best);
+ return best.map((l,i)=>m[i]?GRAY:COL[l]);
 }
 function svgIso(state){
  const s=20;let out='';
@@ -179,5 +184,5 @@ function segments(alg){
   else{if(out.length&&!out[out.length-1].trig){out[out.length-1].txt+=' '+T[i];}
    else out.push({txt:T[i],trig:null,label:null});i++;}}
  return out;}
-window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,TRIGS,stickers};
+window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,grayMask,svgTop,svgIso,svgNet,scramble,segments,movePlan,arrowsFor,COL,GRAY,TRIGS,stickers};
 })();
