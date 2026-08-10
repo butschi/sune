@@ -97,23 +97,42 @@ select{font-family:inherit}
             <sc-for list="{{statusChips}}" as="c" hint-placeholder-count="5">
               <button onClick="{{c.pick}}" style="padding:6px 11px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:12.5px;font-weight:600;display:flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:99px;background:{{c.dot}};display:inline-block"></span>{{c.label}}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.75">{{c.count}}</span></button>
             </sc-for>
+            <div style="flex:1"></div>
+            <button onClick="{{toggleView}}" title="Toggle list / cards" style="width:34px;height:34px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:15px;line-height:1">{{viewGlyph}}</button>
           </div>
           <div style="height:6px;border-radius:99px;background:var(--sf2);overflow:hidden;display:flex;margin:0 2px 16px">
             <div style="background:var(--good);width:{{pctKnown}}%"></div>
             <div style="background:var(--warn);width:{{pctLearn}}%"></div>
             <div style="background:var(--info);width:{{pctWant}}%"></div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">
-            <sc-for list="{{learnItems}}" as="it" hint-placeholder-count="12">
-              <div onClick="{{it.open}}" style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:14px 12px 10px;cursor:pointer;position:relative;text-align:center">
-                <div style="position:absolute;top:10px;right:10px;width:9px;height:9px;border-radius:99px;background:{{it.dot}}"></div>
-                <div style="width:74%;max-width:120px;margin:0 auto">{{it.svg}}</div>
-                <div style="font-weight:700;font-size:14.5px;margin-top:9px">{{it.id}}</div>
-                <div style="color:var(--tx2);font-size:12.5px;margin-top:1px;min-height:16px">{{it.name}}</div>
-                <button onClick="{{it.cycle}}" style="margin-top:8px;padding:4px 11px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:{{it.stCo}};font-size:11px;font-weight:700;letter-spacing:.04em">{{it.stLabel}}</button>
-              </div>
-            </sc-for>
-          </div>
+          <sc-if value="{{viewCards}}" hint-placeholder-val="{{true}}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px">
+              <sc-for list="{{learnItems}}" as="it" hint-placeholder-count="12">
+                <div onClick="{{it.open}}" style="background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:14px 12px 10px;cursor:pointer;position:relative;text-align:center">
+                  <div style="position:absolute;top:10px;right:10px;width:9px;height:9px;border-radius:99px;background:{{it.dot}}"></div>
+                  <div style="width:74%;max-width:120px;margin:0 auto">{{it.svg}}</div>
+                  <div style="font-weight:700;font-size:14.5px;margin-top:9px">{{it.id}}</div>
+                  <div style="color:var(--tx2);font-size:12.5px;margin-top:1px;min-height:16px">{{it.name}}</div>
+                  <button onClick="{{it.cycle}}" style="margin-top:8px;padding:4px 11px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:{{it.stCo}};font-size:11px;font-weight:700;letter-spacing:.04em">{{it.stLabel}}</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{viewList}}" hint-placeholder-val="{{false}}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{learnItems}}" as="it" hint-placeholder-count="12">
+                <div onClick="{{it.open}}" style="display:flex;align-items:center;gap:12px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:8px 12px;cursor:pointer">
+                  <div style="width:46px;flex-shrink:0">{{it.svg}}</div>
+                  <div style="flex-shrink:0;min-width:76px">
+                    <div style="font-weight:700;font-size:13.5px">{{it.id}}</div>
+                    <div style="color:var(--tx2);font-size:11.5px">{{it.name}}</div>
+                  </div>
+                  <div style="flex:1;font-family:'IBM Plex Mono',monospace;font-size:12.5px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;text-align:right">{{it.alg}}</div>
+                  <button onClick="{{it.cycle}}" style="flex-shrink:0;padding:4px 9px;border-radius:99px;border:1px solid var(--ln);background:var(--sf2);color:{{it.stCo}};font-size:10.5px;font-weight:700;letter-spacing:.04em">{{it.stLabel}}</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
         </sc-if>
       </div>
     </sc-if>
@@ -234,8 +253,8 @@ select{font-family:inherit}
             <div style="max-width:250px;margin:10px auto 2px">{{scrSvg}}</div>
           </sc-if>
         </div>
-        <div onPointerDown="{{padDown}}" onPointerUp="{{padUp}}" onPointerCancel="{{padCancel}}" onContextMenu="{{noCtx}}" style="background:{{padBg}};border:1px solid {{padBd}};border-radius:18px;margin-top:12px;height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;touch-action:none">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:64px;font-weight:600;color:{{timeCo}};font-variant-numeric:tabular-nums">{{timeDisp}}</div>
+        <div onPointerDown="{{padDown}}" onPointerUp="{{padUp}}" onPointerCancel="{{padCancel}}" onContextMenu="{{noCtx}}" style="background:{{padBg}};border:1px solid {{padBd}};border-radius:{{padRad}};margin-top:{{padMt}};height:{{padH}};position:{{padPos}};inset:{{padInset}};z-index:{{padZ}};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;touch-action:none">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:{{padTimeFs}};font-weight:600;color:{{timeCo}};font-variant-numeric:tabular-nums">{{timeDisp}}</div>
           <div style="font-size:12.5px;color:var(--tx2);letter-spacing:.06em">{{padHint}}</div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
@@ -383,6 +402,14 @@ select{font-family:inherit}
                 <div style="font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">{{s.val}}</div>
               </div>
             </sc-for>
+          </div>
+        </div>
+        <div style="background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:14px 16px">
+          <div style="font-size:11px;font-weight:800;color:var(--tx2);letter-spacing:.1em">BACKUP</div>
+          <div style="color:var(--tx2);font-size:13.5px;line-height:1.55;margin-top:6px">Everything is stored only in this browser. Export a backup file to move your progress and times to another device, or to keep them safe.</div>
+          <div style="display:flex;gap:8px;margin-top:11px">
+            <button onClick="{{exportData}}" style="padding:9px 16px;border-radius:11px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:13px;font-weight:600">Export data</button>
+            <button onClick="{{importData}}" style="padding:9px 16px;border-radius:11px;border:1px solid var(--ln);background:var(--sf2);color:var(--tx);font-size:13px;font-weight:600">Import data</button>
           </div>
         </div>
       </div>
