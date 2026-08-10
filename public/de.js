@@ -108,6 +108,11 @@ window.L10N = { de: {
 "ACCURACY": "TREFFERQUOTE",
 "WEAKEST CASES": "SCHWÄCHSTE CASES",
 "Timing": "Zeiten",
+"Drill times": "Drill-Zeiten",
+"TOTAL DRILLS": "DRILLS GESAMT",
+"CASES DRILLED": "CASES GEDRILLT",
+"BIGGEST ROOM TO IMPROVE": "GRÖSSTES VERBESSERUNGSPOTENZIAL",
+"Ranked by turns per second at your best time — a low TPS means the alg has headroom, regardless of its length.": "Sortiert nach Zügen pro Sekunde bei deiner Bestzeit — niedrige TPS heißt Luft nach oben, unabhängig von der Alg-Länge.",
 "ALL-TIME BEST": "REKORD",
 "TOTAL SOLVES": "SOLVES GESAMT",
 

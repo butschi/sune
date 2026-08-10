@@ -605,6 +605,31 @@ class Component extends DCLogic {
         return { label:this.lbl(it), svg:this.svgFor(it),
           acc:Math.round(x.rec.c/x.rec.a*100)+'%', open:()=>this.openCase(x.uid) }; }).filter(Boolean);
     v.weakOn=weak.length>0; v.weakRows=weak;
+    // drill-time stats per case, across all sessions (case execution, not full solves)
+    const dstats={};
+    s.sessions.forEach(x=>x.solves.forEach(sv=>{
+      if(!sv.drill) return;
+      const r=dstats[sv.drill]||(dstats[sv.drill]={n:0,best:Infinity});
+      r.n++; const dms=this.solveMs(sv);
+      if(dms<r.best) r.best=dms;
+    }));
+    const drilled=Object.keys(dstats);
+    const totalDrills=drilled.reduce((a,u)=>a+dstats[u].n,0);
+    v.drillOn=totalDrills>0;
+    v.drillTiles=[['TOTAL DRILLS',String(totalDrills)],['CASES DRILLED',drilled.length+' / '+this.allItems().length]].map(x=>({label:x[0],val:x[1]}));
+    // rank by turns-per-second at the case best — comparable across F2L/OLL/PLL,
+    // unlike raw times, which would always blame the longest algs
+    const slow=drilled.map(uid=>{
+        const it=this.find(uid), st=dstats[uid];
+        if(!it||st.n<2||!isFinite(st.best)||st.best<=0) return null;
+        const tps=C.parseAlg(this.prefAlg(it)).length/(st.best/1000);
+        return { it, st, tps };
+      }).filter(Boolean)
+      .sort((a,b)=>a.tps-b.tps).slice(0,8)
+      .map(x=>({ label:this.lbl(x.it), svg:this.svgFor(x.it), best:this.fmt(x.st.best),
+        tps:x.tps.toFixed(1)+' TPS', count:x.st.n+'×',
+        open:()=>this.openCase(x.it.uid) }));
+    v.drillSlowOn=slow.length>0; v.drillSlowRows=slow;
     const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves.filter(sv=>!sv.drill)));
     v.globalTstats=[['ALL-TIME BEST',this.best(allSolves)||'—'],['TOTAL SOLVES',String(allSolves.length)],
       ['SESSIONS',String(s.sessions.length)]].map(x=>({label:x[0],val:x[1]}));
