@@ -48,6 +48,15 @@ suites.forEach(su => {
         if (!C.f2lIntact(C.caseState(alg)))
           fail(c.id + ' alg[' + i + '] disturbs F2L: ' + alg);
       }
+      // 2b. F2L algs must be pre-aligned: their case state IS the diagram state
+      // (the iso renderer's best-visibility AUF must be a no-op), so the player,
+      // setup scramble, and diagram always agree
+      if (su.kind === 'f2l') {
+        checks++;
+        const st = C.caseState(alg);
+        if (JSON.stringify(st) !== JSON.stringify(C.isoAuf(st)))
+          fail(c.id + ' alg[' + i + '] is not aligned to its diagram state: ' + alg);
+      }
     });
     // 3. all-pairs starring
     for (let p = 0; p < c.algs.length; p++) {

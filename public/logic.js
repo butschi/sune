@@ -112,8 +112,9 @@ class Component extends DCLogic {
     const s=this.state;
     try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg,view:s.view})); }catch(e){}
   }
-  cube3d(state,anim){
+  cube3d(state,anim,grayNoise){
     const C=window.CUBE,S=32,kids=[];
+    const mask=grayNoise?C.grayMask(state):null;
     const rotFor=n=>n[2]===1?'':(n[2]===-1?' rotateY(180deg)':(n[0]===1?' rotateY(90deg)':(n[0]===-1?' rotateY(-90deg)':(n[1]===1?' rotateX(90deg)':' rotateX(-90deg)'))));
     const CS=2.08*S; // small enough that its corners never pierce the rotating sticker orbit (radius 1.5*S)
     ['','rotateY(180deg)','rotateY(90deg)','rotateY(-90deg)','rotateX(90deg)','rotateX(-90deg)'].forEach((f,i)=>{
@@ -121,7 +122,7 @@ class Component extends DCLogic {
     C.stickers.forEach((st,i)=>{
       const p=st.p,n=st.n;
       const t='translate3d('+((p[0]+0.5*n[0])*S)+'px,'+(-(p[1]+0.5*n[1])*S)+'px,'+((p[2]+0.5*n[2])*S)+'px)'+rotFor(n);
-      const sty={position:'absolute',left:(-S/2)+'px',top:(-S/2)+'px',width:S+'px',height:S+'px',boxSizing:'border-box',borderRadius:'5px',border:'2.5px solid #100d16',background:C.COL[state[i]],'--b':t,transform:'var(--b)'};
+      const sty={position:'absolute',left:(-S/2)+'px',top:(-S/2)+'px',width:S+'px',height:S+'px',boxSizing:'border-box',borderRadius:'5px',border:'2.5px solid #100d16',background:(mask&&mask[i])?C.GRAY:C.COL[state[i]],'--b':t,transform:'var(--b)'};
       if(anim&&anim.sel(p)) sty.animation='sp'+anim.axis+(anim.deg>0?'p':'n')+Math.abs(anim.deg)+' '+(Math.abs(anim.deg)>90?'.5s':'.34s')+' cubic-bezier(.45,.05,.35,1) forwards';
       kids.push(React.createElement('div',{key:'s'+i,style:sty}));});
     return React.createElement('div',{style:{width:'230px',height:'214px',margin:'0 auto',perspective:'1100px',overflow:'visible'}},
@@ -143,17 +144,29 @@ class Component extends DCLogic {
   el(html,style){ return React.createElement('div',{style:style||{width:'100%'},dangerouslySetInnerHTML:{__html:html}}); }
   prefIdx(it){ return Math.min(this.state.pref[it.uid]||0,it.algs.length-1); }
   prefAlg(it){ return it.algs[this.prefIdx(it)]; }
-  // The starred alg defines the orientation shown in diagrams and setups; every
-  // other alg gets the AUF that makes it solve from that exact position. Returns
-  // that prefix move, or null if the alg already fits. Re-starring recomputes all.
-  algAdjust(it,i){
-    const C=window.CUBE, p=this.prefIdx(it);
-    if(i===p) return null;
-    const base=C.caseState(it.algs[p]);
-    for(const u of ['','U','U2',"U'"]){
-      if(C.caseSolved(it.set,C.apply(base,u?u+' '+it.algs[i]:it.algs[i]))) return u||null;
+  // The alg whose caseState the case diagram shows exactly. For PLL that is the
+  // starred alg plus the AUF that draws the fewest arrows (canonical case);
+  // everywhere else it is the starred alg itself (F2L data is pre-aligned).
+  diagAlg(it){
+    const pa=this.prefAlg(it);
+    if(it.viz!=='pll') return pa;
+    const C=window.CUBE; let best=pa,bn=Infinity;
+    ['',' U',' U2'," U'"].forEach(a=>{
+      const n=C.arrowsFor(pa+a).reduce((s,x)=>s+(x.double?2:1),0);
+      if(n<bn){ bn=n; best=pa+a; }
+    });
+    return best;
+  }
+  // Fit algs[i] to the diagram state: the smallest AUF prefix/suffix that makes it
+  // solve exactly what the diagram shows. Rows render pre/post dimmed; the player
+  // plays `full`, so its start position always matches the diagram.
+  algFit(it,i){
+    const C=window.CUBE, base=C.caseState(this.diagAlg(it)), A=['','U','U2',"U'"];
+    for(const pre of A) for(const post of A){
+      const full=(pre?pre+' ':'')+it.algs[i]+(post?' '+post:'');
+      if(C.caseSolved(it.set,C.apply(base,full))) return {pre,post,full};
     }
-    return null;
+    return {pre:'',post:'',full:it.algs[i]};
   }
   // Diagrams follow the starred alg (cache key includes it).
   svgFor(it){
@@ -168,16 +181,10 @@ class Component extends DCLogic {
   // fewest pieces so the diagram shows the canonical case (e.g. Z perm: edges only).
   svgArrows(it){
     if(it.viz!=='pll') return this.svgFor(it);
-    const pa=this.prefAlg(it), key=it.uid+'§'+pa;
+    const da=this.diagAlg(it), key=it.uid+'§'+da;
     if(this._svgsA[key]) return this._svgsA[key];
     const C=window.CUBE;
-    let best=null,bestAr=null,bn=Infinity;
-    ['',' U',' U2'," U'"].forEach(a=>{
-      const alg=pa+a, ar=C.arrowsFor(alg);
-      const n=ar.reduce((s,x)=>s+(x.double?2:1),0);
-      if(n<bn){ bn=n; best=alg; bestAr=ar; }
-    });
-    return this._svgsA[key]=this.el(C.svgTop(C.caseState(best),'pll',bestAr));
+    return this._svgsA[key]=this.el(C.svgTop(C.caseState(da),'pll',C.arrowsFor(da)));
   }
   allItems(){ return this.cat.f2l.concat(this.cat.oll,this.cat.pll); }
   find(uid){ return this.allItems().concat(this.cat.oll2).find(i=>i.uid===uid); }
@@ -395,19 +402,21 @@ class Component extends DCLogic {
       if(it){
         v.modalOn=true;
         const st=s.status[it.uid]||0, pref=s.pref[it.uid]||0;
-        const setup=C.invert(it.algs[Math.min(pref,it.algs.length-1)]);
+        const setup=C.invert(this.diagAlg(it));
         const trigsFound={}; let anyAdjust=false;
-        const adjustLabel='alignment move — not needed once this alg is starred';
+        const adjustLabel='alignment turn to match the shown position';
         const algs=it.algs.map((raw,i)=>{
-          const pre=this.algAdjust(it,i), alg=pre?pre+' '+raw:raw;
-          if(pre) anyAdjust=true;
-          const segs=(pre?[{txt:pre,title:adjustLabel,co:'var(--tx2)',bb:'2px dotted var(--tx2)',ws:'nowrap'}]:[])
+          const fit=this.algFit(it,i);
+          if(fit.pre||fit.post) anyAdjust=true;
+          const adjSeg=t=>({txt:t,title:adjustLabel,co:'var(--tx2)',bb:'2px dotted var(--tx2)',ws:'nowrap'});
+          const segs=(fit.pre?[adjSeg(fit.pre)]:[])
             .concat(C.segments(raw).map(g=>{ if(g.trig) trigsFound[g.trig]=g.label;
               return { txt:g.txt, title:g.label||'', co:g.trig?this.trigCo(g.trig):'var(--tx)', bb:g.trig?('2px solid '+this.trigCo(g.trig)):'none',
-                ws:g.trig?'nowrap':'normal' }; }));
+                ws:g.trig?'nowrap':'normal' }; }))
+            .concat(fit.post?[adjSeg(fit.post)]:[]);
           return { segs, starCo:i===Math.min(pref,it.algs.length-1)?'var(--warn)':'var(--ln)',
             makePref:()=>{ const p=Object.assign({},s.pref); p[it.uid]=i; this.setState({pref:p},()=>this.persist()); },
-            play:()=>this.setState({play:{alg,step:0}}) };
+            play:()=>this.setState({play:{alg:fit.full,step:0}}) };
         });
         const qs=s.qstats[it.uid], accParts=[];
         if(qs) accParts.push(this.trf('drill record: {c}/{a} correct',{c:qs.c,a:qs.a}));
@@ -430,7 +439,7 @@ class Component extends DCLogic {
           const tokens=C.parseAlg(s.play.alg);
           let cs=C.caseState(s.play.alg);
           for(let i=0;i<s.play.step;i++) cs=C.applyToken(cs,tokens[i]);
-          v.playSvg=this.cube3d(cs,s.play.anim);
+          v.playSvg=this.cube3d(cs,s.play.anim,it.viz==='iso');
           v.playTokens=tokens.map((t,i)=>({ txt:t,
             bg:i===s.play.step?'var(--acc)':(i<s.play.step?'var(--sf2)':'var(--sf)'),
             co:i===s.play.step?'#fff':(i<s.play.step?'var(--tx2)':'var(--tx)') }));
