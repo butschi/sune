@@ -2,7 +2,7 @@ class Component extends DCLogic {
   state = {
     ready:false, theme:'dark', wide:false, tab:'learn',
     lang:(typeof navigator!=='undefined'&&(navigator.language||'').toLowerCase().indexOf('de')===0)?'de':'en',
-    set:'oll', stFilter:-1, modal:null, play:null,
+    set:'oll', stFilter:-1, view:'cards', modal:null, play:null,
     qcfg:{sets:{oll:true,pll:true,f2l:false},scope:'all',mode:'name',timed:false}, quiz:null,
     tmode:'random', tcaseSet:'oll', tcase:null, scr:'', showPreview:false, inspection:false,
     tstate:'idle', armed:false, t0:0, now:0, inspStart:0,
@@ -49,6 +49,36 @@ class Component extends DCLogic {
     if(open){ this._scrollY=window.scrollY; b.position='fixed'; b.top=(-this._scrollY)+'px'; b.left='0'; b.right='0'; b.width='100%'; }
     else { b.position=''; b.top=''; b.left=''; b.right=''; b.width=''; window.scrollTo(0,this._scrollY||0); }
   }
+  // ---------- backup ----------
+  exportData(){
+    this.persist();
+    const blob=new Blob([localStorage.getItem('sune-cfop-v1')||'{}'],{type:'application/json'});
+    const a=document.createElement('a'), d=new Date(), p=n=>String(n).padStart(2,'0');
+    a.href=URL.createObjectURL(blob);
+    a.download='sune-backup-'+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }
+  importData(){
+    const inp=document.createElement('input');
+    inp.type='file'; inp.accept='application/json,.json';
+    inp.onchange=()=>{
+      const f=inp.files&&inp.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{
+        try{
+          const obj=JSON.parse(rd.result);
+          if(!obj||typeof obj!=='object'||Array.isArray(obj)) throw 0;
+          if(!['status','pref','sessions','qstats','theme','lang'].some(k=>obj[k]!==undefined)) throw 0;
+          if(!window.confirm(this.tr('Replace all data in this browser with the imported backup?'))) return;
+          localStorage.setItem('sune-cfop-v1',JSON.stringify(obj));
+          location.reload();
+        }catch(e){ window.alert(this.tr('Not a valid SUNE backup file.')); }
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  }
   wakeVideo(){
     if(!this._wlv){
       const v=document.createElement('video');
@@ -72,7 +102,7 @@ class Component extends DCLogic {
     this.cat=cat; this._svgs={}; this._svgsA={};
     let saved={}; try{ saved=JSON.parse(localStorage.getItem('sune-cfop-v1'))||{}; }catch(e){}
     const st={ready:true};
-    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
+    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tcaseSet','tcase','view'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
     if(saved.sessions&&saved.sessions.length) st.sessions=saved.sessions;
     if(saved.qcfg) st.qcfg=Object.assign({},this.state.qcfg,saved.qcfg);
     st.cur=Math.min(st.cur||0,(st.sessions||this.state.sessions).length-1);
@@ -80,7 +110,7 @@ class Component extends DCLogic {
   }
   persist(){
     const s=this.state;
-    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg})); }catch(e){}
+    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tcaseSet:s.tcaseSet,tcase:s.tcase,qcfg:s.qcfg,view:s.view})); }catch(e){}
   }
   cube3d(state,anim){
     const C=window.CUBE,S=32,kids=[];
@@ -343,9 +373,12 @@ class Component extends DCLogic {
         pick:()=>this.setState({stFilter:d[0]})},this.chip(s.stFilter===d[0])));
       const tot=items.length||1;
       v.pctKnown=(counts[3]/tot*100).toFixed(1); v.pctLearn=(counts[2]/tot*100).toFixed(1); v.pctWant=(counts[1]/tot*100).toFixed(1);
+      v.viewCards=s.view!=='list'; v.viewList=s.view==='list';
+      v.viewGlyph=s.view==='list'?'▦':'☰';
+      v.toggleView=()=>this.setState({view:s.view==='list'?'cards':'list'},()=>this.persist());
       v.learnItems=items.filter(it=>s.stFilter<0||(s.status[it.uid]||0)===s.stFilter).map(it=>{
         const st=s.status[it.uid]||0, meta=this.stMeta(st);
-        return { id:it.id, name:it.name, svg:this.svgArrows(it), dot:st===0?'transparent':meta.co,
+        return { id:it.id, name:it.name, svg:this.svgArrows(it), alg:this.prefAlg(it), dot:st===0?'transparent':meta.co,
           stLabel:meta.label, stCo:meta.co,
           open:()=>this.openCase(it.uid),
           cycle:(e)=>{ e.stopPropagation(); this.setStatus(it.uid,(st+1)%4); } };
@@ -472,6 +505,13 @@ class Component extends DCLogic {
     v.togglePreview=()=>this.setState({showPreview:!s.showPreview});
     v.scrSvg=s.showPreview?this.scrSvgEl():null;
     v.padDown=(e)=>this.padDown(e); v.padUp=()=>this.padUp(); v.padCancel=()=>this.padCancel(); v.noCtx=(e)=>e.preventDefault();
+    // While inspecting or solving, the pad goes fullscreen: no distractions and
+    // the whole screen is the touch zone. Same element in both layouts, so an
+    // in-flight touch (hold-to-arm, tap-to-stop) survives the style switch.
+    const zen=s.tstate==='run'||s.tstate==='inspect';
+    v.padPos=zen?'fixed':'relative'; v.padInset=zen?'0':'auto'; v.padZ=zen?'200':'auto';
+    v.padRad=zen?'0':'18px'; v.padH=zen?'auto':'220px'; v.padMt=zen?'0':'12px';
+    v.padTimeFs=zen?'min(20vw,120px)':'64px';
     // case mode shows only the drilled case's times; random mode only real solves
     const indexed=this.session().solves.map((sv,i)=>({sv,i})).filter(x=>v.tCaseMode?x.sv.drill===s.tcase:!x.sv.drill);
     const solves=indexed.map(x=>x.sv);
@@ -533,6 +573,7 @@ class Component extends DCLogic {
     const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves.filter(sv=>!sv.drill)));
     v.globalTstats=[['ALL-TIME BEST',this.best(allSolves)||'—'],['TOTAL SOLVES',String(allSolves.length)],
       ['SESSIONS',String(s.sessions.length)]].map(x=>({label:x[0],val:x[1]}));
+    v.exportData=()=>this.exportData(); v.importData=()=>this.importData();
     return v;
   }
   navIcon(k){
