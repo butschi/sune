@@ -5,6 +5,7 @@ class Component extends DCLogic {
     set:'oll', stFilter:-1, view:'cards', modal:null, play:null,
     qcfg:{sets:{oll:true,pll:true,f2l:false},scope:'all',mode:'name',timed:false}, quiz:null,
     tmode:'random', tfilter:{sets:{},st:{}}, tpin:null, tcase:null, scr:'', showPreview:false, inspection:false,
+    tsplit:false, laps:[],
     tstate:'idle', armed:false, t0:0, now:0, inspStart:0,
     status:{}, pref:{}, qstats:{},
     sessions:[{name:'Session 1', solves:[]}], cur:0
@@ -102,7 +103,7 @@ class Component extends DCLogic {
     this.cat=cat; this._svgs={}; this._svgsA={};
     let saved={}; try{ saved=JSON.parse(localStorage.getItem('sune-cfop-v1'))||{}; }catch(e){}
     const st={ready:true};
-    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tpin','view'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
+    ['theme','lang','status','pref','qstats','cur','inspection','tmode','tpin','tsplit','view'].forEach(k=>{ if(saved[k]!==undefined) st[k]=saved[k]; });
     if(saved.tfilter) st.tfilter={sets:Object.assign({},this.state.tfilter.sets,saved.tfilter.sets),st:Object.assign({},this.state.tfilter.st,saved.tfilter.st)};
     if(saved.sessions&&saved.sessions.length) st.sessions=saved.sessions;
     if(saved.qcfg) st.qcfg=Object.assign({},this.state.qcfg,saved.qcfg);
@@ -111,7 +112,7 @@ class Component extends DCLogic {
   }
   persist(){
     const s=this.state;
-    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tfilter:s.tfilter,tpin:s.tpin,qcfg:s.qcfg,view:s.view})); }catch(e){}
+    try{ localStorage.setItem('sune-cfop-v1',JSON.stringify({theme:s.theme,lang:s.lang,status:s.status,pref:s.pref,qstats:s.qstats,sessions:s.sessions,cur:s.cur,inspection:s.inspection,tmode:s.tmode,tfilter:s.tfilter,tpin:s.tpin,tsplit:s.tsplit,qcfg:s.qcfg,view:s.view})); }catch(e){}
   }
   cube3d(state,anim,grayNoise){
     const C=window.CUBE,S=32,kids=[];
@@ -218,7 +219,22 @@ class Component extends DCLogic {
       // returns to solved — cases chain seamlessly (identical to modal setup)
       scr=C.drillScramble(this.diagAlg(it));
       this.setState({scr,tcase:it.uid});
+    } else if(s.tmode==='ll'){
+      const o=this.cat.oll[(Math.random()*this.cat.oll.length)|0];
+      const p=this.cat.pll[(Math.random()*this.cat.pll.length)|0];
+      const A=['','U','U2',"U'"];
+      scr=C.llScramble(this.prefAlg(o),this.prefAlg(p),A[(Math.random()*4)|0],A[(Math.random()*4)|0]);
+      this.setState({scr,tcase:null});
     } else { scr=C.scramble(this.props.scrambleLength??20); this.setState({scr}); }
+  }
+  phaseCo(n){ return {Cross:'var(--info)',F2L:'var(--acc)',OLL:'var(--warn)',PLL:'var(--good)'}[n]||'var(--tx2)'; }
+  // phase labels for split timing in the current mode, or null when off
+  phaseLabels(){
+    const s=this.state;
+    if(!s.tsplit) return null;
+    if(s.tmode==='ll') return ['OLL','PLL'];
+    if(s.tmode==='random') return ['Cross','F2L','OLL','PLL'];
+    return null;
   }
   scrSvgEl(){
     const C=window.CUBE; if(!C||!this.state.scr) return null;
@@ -232,7 +248,11 @@ class Component extends DCLogic {
   padDown(e){
     if(e&&e.button>0) return;
     const s=this.state;
-    if(s.tstate==='run'){ this.finish(); this._justStopped=true; return; }
+    if(s.tstate==='run'){
+      const phases=this.phaseLabels();
+      if(phases&&s.laps.length<phases.length-1){ this.setState({laps:s.laps.concat([Date.now()-s.t0])}); return; }
+      this.finish(); this._justStopped=true; return;
+    }
     if(s.tmode==='case'&&!s.scr) return;
     if(s.tstate==='idle'&&s.inspection){ this.startInspect(); return; }
     this.beginHold();
@@ -254,7 +274,7 @@ class Component extends DCLogic {
     clearInterval(this._insp);
     const inspSec=this.state.tstate==='inspect'?(Date.now()-this.state.inspStart)/1000:0;
     this._inspOver=Math.max(0,inspSec-15);
-    this.setState({tstate:'run',t0:Date.now(),now:Date.now(),armed:false});
+    this.setState({tstate:'run',t0:Date.now(),now:Date.now(),armed:false,laps:[]});
     this._run=setInterval(()=>this.setState({now:Date.now()}),33);
   }
   finish(){
@@ -262,10 +282,13 @@ class Component extends DCLogic {
     const ms=Date.now()-this.state.t0;
     const pen=this._inspOver>2?'dnf':(this._inspOver>0?2:0);
     const sv={ms,pen,scr:this.state.scr,ts:Date.now()};
-    // tag case-drill times so they never mix into real solve stats
+    // tag case-drill and last-layer times so they never mix into real solve stats
     if(this.state.tmode==='case'&&this.state.tcase) sv.drill=this.state.tcase;
+    if(this.state.tmode==='ll') sv.ll=1;
+    const laps=this.state.laps;
+    if(laps&&laps.length){ const ph=[]; let prev=0; laps.forEach(l=>{ ph.push(l-prev); prev=l; }); ph.push(ms-prev); sv.ph=ph; }
     const sessions=this.state.sessions.map((x,i)=>i===this.state.cur?{name:x.name,solves:x.solves.concat([sv])}:x);
-    this.setState({tstate:'idle',sessions},()=>{ this.persist(); this.newScr(); });
+    this.setState({tstate:'idle',sessions,laps:[]},()=>{ this.persist(); this.newScr(); });
   }
   onKey(e,down){
     if(this.state.tab!=='timer'||this.state.modal) return;
@@ -509,9 +532,12 @@ class Component extends DCLogic {
         return { label:this.lbl(it), svg:this.svgArrows(it,true), open:()=>this.openCase(uid) }; });
     }
     // ----- timer -----
-    v.tmodeChips=[['random','Random scramble'],['case','Case drill']].map(d=>Object.assign({
+    v.tmodeChips=[['random','Random scramble'],['ll','Last layer'],['case','Case drill']].map(d=>Object.assign({
       label:d[1], pick:()=>this.setState({tmode:d[0]},()=>{ this.persist(); this.newScr(); })},this.chip(s.tmode===d[0])));
-    v.tCaseMode=s.tmode==='case';
+    v.tCaseMode=s.tmode==='case'; v.tLLMode=s.tmode==='ll'; v.tSplitOn=s.tmode!=='case';
+    const spc=this.chip(s.tsplit);
+    v.splitBd=spc.bd; v.splitBg=spc.bg; v.splitCo=spc.co; v.splitState=s.tsplit?'on':'off';
+    v.toggleSplit=()=>this.setState({tsplit:!s.tsplit},()=>this.persist());
     const tf=s.tfilter;
     v.tfSetChips=[['f2l','F2L'],['oll','OLL'],['pll','PLL']].map(d=>Object.assign({
       label:d[1], pick:()=>{ const sets=Object.assign({},tf.sets); sets[d[0]]=!sets[d[0]];
@@ -547,10 +573,18 @@ class Component extends DCLogic {
     v.padRad=zen?'0':'18px'; v.padH=zen?'auto':'220px'; v.padMt=zen?'0':'12px';
     v.padTimeFs=zen?'min(20vw,120px)':'64px';
     // case mode shows only the drilled case's times; random mode only real solves
-    const indexed=this.session().solves.map((sv,i)=>({sv,i})).filter(x=>v.tCaseMode?(s.tpin?x.sv.drill===s.tpin:!!x.sv.drill):!x.sv.drill);
+    const indexed=this.session().solves.map((sv,i)=>({sv,i})).filter(x=>{
+      if(v.tCaseMode) return s.tpin?x.sv.drill===s.tpin:!!x.sv.drill;
+      if(v.tLLMode) return !!x.sv.ll;
+      return !x.sv.drill&&!x.sv.ll;
+    });
     const solves=indexed.map(x=>x.sv);
     const lastSv=solves[solves.length-1];
-    if(s.tstate==='run'){ v.timeDisp=this.fmt(s.now-s.t0); v.timeCo='var(--tx)'; v.padHint='tap to stop'; v.padBg='var(--sf)'; v.padBd='var(--acc)'; }
+    const phl=this.phaseLabels();
+    if(s.tstate==='run'){ v.timeDisp=this.fmt(s.now-s.t0); v.timeCo='var(--tx)';
+      v.padHint=phl?this.tr(phl[s.laps.length])+' · '+this.tr(s.laps.length<phl.length-1?'tap to split':'tap to stop'):this.tr('tap to stop');
+      v.padSplitSegs=s.laps.map((l,i)=>({txt:(((i?l-s.laps[i-1]:l))/1000).toFixed(1),co:this.phaseCo(phl?phl[i]:'')}));
+      v.padBg='var(--sf)'; v.padBd='var(--acc)'; }
     else if(s.tstate==='inspect'){
       const left=15-Math.floor((s.now-s.inspStart)/1000);
       v.timeDisp=String(Math.max(-2,left)); v.timeCo=s.armed?'var(--good)':(left<=3?'var(--bad)':'var(--warn)');
@@ -561,11 +595,18 @@ class Component extends DCLogic {
       v.timeCo=s.armed?'var(--good)':'var(--tx)';
       v.padHint=s.armed?'release to start':(s.inspection?'tap to inspect':'hold, release to start · space on desktop');
       v.padBg=s.armed?'color-mix(in srgb, var(--good) 10%, var(--sf))':'var(--sf)'; v.padBd=s.armed?'var(--good)':'var(--ln)'; }
+    v.padSplitSegs=v.padSplitSegs||[];
+    if(phl){
+      const withPh=solves.filter(x=>x.ph&&x.ph.length===phl.length&&x.pen!=='dnf');
+      v.phaseOn=withPh.length>0;
+      v.phaseStats=phl.map((lb,i)=>({label:'ø '+this.tr(lb),co:this.phaseCo(lb),
+        val:withPh.length?this.fmt(withPh.reduce((a,x)=>a+x.ph[i],0)/withPh.length):'—'}));
+    } else v.phaseOn=false;
     v.tstats=[['BEST',this.best(solves)||'—'],['AO5',this.aoN(solves,5)||'—'],['AO12',this.aoN(solves,12)||'—'],
       ['MEAN',solves.length?this.fmt(solves.filter(x=>x.pen!=='dnf').reduce((a,b)=>a+this.solveMs(b),0)/Math.max(1,solves.filter(x=>x.pen!=='dnf').length)):'—'],
       ['SOLVES',String(solves.length)]].map(x=>({label:x[0],val:x[1]}));
     v.cur=s.cur;
-    v.sessionOpts=s.sessions.map((x,i)=>({i,label:x.name+' ('+x.solves.filter(y=>!y.drill).length+')'}));
+    v.sessionOpts=s.sessions.map((x,i)=>({i,label:x.name+' ('+x.solves.filter(y=>!y.drill&&!y.ll).length+')'}));
     v.sessionPick=(e)=>this.setState({cur:+e.target.value},()=>this.persist());
     v.newSession=()=>{ const sessions=s.sessions.concat([{name:'Session '+(s.sessions.length+1),solves:[]}]);
       this.setState({sessions,cur:sessions.length-1},()=>this.persist()); };
@@ -574,6 +615,8 @@ class Component extends DCLogic {
     v.solveRows=indexed.map(({sv,i},k)=>({
       num:'#'+(k+1),
       caseLbl:sv.drill?(this.find(sv.drill)||{id:''}).id:'',
+      phSegs:(!sv.drill&&sv.ph)?sv.ph.map((p,i)=>({txt:(p/1000).toFixed(1),
+        co:this.phaseCo((sv.ph.length===2?['OLL','PLL']:['Cross','F2L','OLL','PLL'])[i]||'')})):[],
       disp:sv.pen==='dnf'?'DNF':this.fmt(this.solveMs(sv))+(sv.pen===2?'+':''),
       co:sv.pen==='dnf'?'var(--bad)':(sv.pen===2?'var(--warn)':'var(--tx)'),
       p2bg:sv.pen===2?'var(--accsf)':'var(--sf2)', dnfbg:sv.pen==='dnf'?'var(--accsf)':'var(--sf2)',
@@ -630,7 +673,36 @@ class Component extends DCLogic {
         tps:x.tps.toFixed(1)+' TPS', count:x.st.n+'×',
         open:()=>this.openCase(x.it.uid) }));
     v.drillSlowOn=slow.length>0; v.drillSlowRows=slow;
-    const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves.filter(sv=>!sv.drill)));
+    // phase splits across all sessions: 4-phase = real solves, 2-phase = LL mode
+    const ph4=[],ph2=[];
+    s.sessions.forEach(x=>x.solves.forEach(sv=>{
+      if(!sv.ph||sv.pen==='dnf') return;
+      if(sv.ph.length===4&&!sv.ll&&!sv.drill) ph4.push(sv.ph);
+      if(sv.ph.length===2&&sv.ll) ph2.push(sv.ph);
+    }));
+    v.phSecOn=ph4.length>0||ph2.length>0;
+    const PHCO=['var(--info)','var(--acc)','var(--warn)','var(--good)'];
+    const PHN=['CROSS','F2L','OLL','PLL'];
+    if(ph4.length){
+      const sums=[0,0,0,0]; ph4.forEach(p=>p.forEach((x,i)=>sums[i]+=x));
+      const tot=sums.reduce((a,b)=>a+b,0)||1;
+      v.ph4On=true;
+      v.ph4Count=this.trf('{n} split solves',{n:ph4.length});
+      v.ph4Bar=sums.map((x,i)=>({w:(x/tot*100).toFixed(1),co:PHCO[i]}));
+      v.ph4Legend=PHN.map((n,i)=>({label:this.tr(n)+' '+Math.round(sums[i]/tot*100)+'%',co:PHCO[i]}));
+      v.ph4Rows=PHN.map((n,i)=>({label:n,co:PHCO[i],
+        best:this.fmt(Math.min.apply(null,ph4.map(p=>p[i]))),
+        mean:'ø '+this.fmt(sums[i]/ph4.length)}));
+    } else v.ph4On=false;
+    if(ph2.length){
+      const s2=[0,0]; ph2.forEach(p=>{ s2[0]+=p[0]; s2[1]+=p[1]; });
+      v.ph2On=true;
+      v.ph2Count=this.trf('{n} last-layer solves',{n:ph2.length});
+      v.ph2Rows=[['OLL',0],['PLL',1]].map(d=>({label:d[0],co:PHCO[d[1]+2],
+        best:this.fmt(Math.min.apply(null,ph2.map(p=>p[d[1]]))),
+        mean:'ø '+this.fmt(s2[d[1]]/ph2.length)}));
+    } else v.ph2On=false;
+    const allSolves=[]; s.sessions.forEach(x=>allSolves.push.apply(allSolves,x.solves.filter(sv=>!sv.drill&&!sv.ll)));
     v.globalTstats=[['ALL-TIME BEST',this.best(allSolves)||'—'],['TOTAL SOLVES',String(allSolves.length)],
       ['SESSIONS',String(s.sessions.length)]].map(x=>({label:x[0],val:x[1]}));
     v.exportData=()=>this.exportData(); v.importData=()=>this.importData();
