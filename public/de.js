@@ -72,6 +72,9 @@ window.L10N = { de: {
 
 // ---- timer ----
 "Random scramble": "Zufalls-Scramble",
+"Last layer": "Last Layer",
+"tap to split": "tippen für Split",
+"A random OLL + PLL, built backwards from a solved cube — solve the last layer any way you like (1-look or 2-look) and you're back at solved for the next one.": "Ein zufälliges OLL + PLL, rückwärts vom gelösten Würfel aufgebaut — löse die letzte Ebene wie du willst (1-Look oder 2-Look) und du bist für die nächste wieder bei gelöst.",
 "Case drill": "Case-Training",
 "Back to pool": "Zurück zum Pool",
 "Each scramble starts from a solved cube — finish with the starred alg and you're back at solved for the next case.": "Jedes Scramble beginnt am gelösten Würfel — löse mit dem markierten Alg und du bist für den nächsten Case wieder bei gelöst.",
@@ -109,6 +112,10 @@ window.L10N = { de: {
 "WEAKEST CASES": "SCHWÄCHSTE CASES",
 "Timing": "Zeiten",
 "Drill times": "Drill-Zeiten",
+"Solve phases": "Solve-Phasen",
+"{n} split solves": "{n} Solves mit Splits",
+"{n} last-layer solves": "{n} Last-Layer-Solves",
+"CROSS": "KREUZ",
 "TOTAL DRILLS": "DRILLS GESAMT",
 "CASES DRILLED": "CASES GEDRILLT",
 "BIGGEST ROOM TO IMPROVE": "GRÖSSTES VERBESSERUNGSPOTENZIAL",

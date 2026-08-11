@@ -113,6 +113,29 @@ suites.forEach(su => su.cases.forEach(c => c.algs.forEach((alg, i) => {
   if (JSON.stringify(C.apply(C.apply(C.solved(), scr), da)) !== SOLVED) fail(id + ': solving from the scramble does not return to solved');
 })));
 
+// 6. last-layer scrambles: for every OLL x PLL pairing of starred algs, the
+//    composed scramble must leave F2L intact (a genuine LL-only state), and the
+//    intended solve path (AUF + OLL alg -> oriented, AUF + PLL alg -> solved up
+//    to AUF) must exist — validating the composition order and AUF handling.
+const AUFS = ['', 'U', 'U2', "U'"];
+A.oll.forEach(o => A.pll.forEach(p => {
+  const scr = C.llScramble(o.algs[0], p.algs[0], 'U', "U'");
+  const st = C.apply(C.solved(), scr);
+  checks++;
+  if (!C.f2lIntact(st)) return fail('LL scramble breaks F2L: OLL ' + o.n + ' + ' + p.id);
+  checks++;
+  let ok = false;
+  for (const a1 of AUFS) {
+    const afterOll = C.apply(st, a1 ? a1 + ' ' + o.algs[0] : o.algs[0]);
+    if (!C.caseSolved('oll', afterOll)) continue;
+    for (const a2 of AUFS) {
+      if (C.caseSolved('pll', C.apply(afterOll, a2 ? a2 + ' ' + p.algs[0] : p.algs[0]))) { ok = true; break; }
+    }
+    if (ok) break;
+  }
+  if (!ok) fail('LL scramble not solvable by its own pair: OLL ' + o.n + ' + ' + p.id);
+}));
+
 console.warn = origWarn;
 if (parseWarnings.length) fail('unparseable moves: ' + parseWarnings.join('; '));
 

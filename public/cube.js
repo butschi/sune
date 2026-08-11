@@ -192,6 +192,10 @@ function diagramAlg(alg,kind){
   if(n<bn){bn=n;best=alg+a;}});
  return best;}
 function drillScramble(alg){return simplify(invert(alg));}
+// last-layer scramble: build backwards from solved so ANY correct LL solve
+// (1-look, 2-look, different algs) ends at exactly solved and sessions chain
+function llScramble(ollAlg,pllAlg,auf1,auf2){
+ return simplify((invert(pllAlg)+' '+(auf1||'')+' '+invert(ollAlg)+' '+(auf2||'')).replace(/\s+/g,' ').trim());}
 // ---- scramble (random-move, WCA-style constraints)
 function scramble(len){len=len||20;
  const F=['U','D','R','L','F','B'],AX={U:0,D:0,R:1,L:1,F:2,B:2},S=['',"'",'2'];
@@ -215,5 +219,5 @@ function segments(alg){
   else{if(out.length&&!out[out.length-1].trig){out[out.length-1].txt+=' '+T[i];}
    else out.push({txt:T[i],trig:null,label:null});i++;}}
  return out;}
-window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,grayMask,svgTop,svgIso,svgNet,scramble,simplify,diagramAlg,drillScramble,segments,movePlan,arrowsFor,COL,GRAY,TRIGS,stickers};
+window.CUBE={solved,parseAlg,applyToken,apply,invert,caseState,caseSolved,f2lIntact,isoAuf,grayMask,svgTop,svgIso,svgNet,scramble,simplify,diagramAlg,drillScramble,llScramble,segments,movePlan,arrowsFor,COL,GRAY,TRIGS,stickers};
 })();

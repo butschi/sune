@@ -241,8 +241,14 @@ select{font-family:inherit}
             <button onClick="{{c.pick}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{c.bd}};background:{{c.bg}};color:{{c.co}};font-size:13px;font-weight:600">{{c.label}}</button>
           </sc-for>
           <div style="flex:1"></div>
+          <sc-if value="{{tSplitOn}}" hint-placeholder-val="{{true}}">
+            <button onClick="{{toggleSplit}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{splitBd}};background:{{splitBg}};color:{{splitCo}};font-size:13px;font-weight:600">Splits {{splitState}}</button>
+          </sc-if>
           <button onClick="{{toggleInspection}}" style="padding:7px 13px;border-radius:99px;border:1px solid {{inspBd}};background:{{inspBg}};color:{{inspCo}};font-size:13px;font-weight:600">15s inspection {{inspState}}</button>
         </div>
+        <sc-if value="{{tLLMode}}" hint-placeholder-val="{{false}}">
+          <div style="color:var(--tx2);font-size:12px;line-height:1.5;margin-top:8px">A random OLL + PLL, built backwards from a solved cube — solve the last layer any way you like (1-look or 2-look) and you're back at solved for the next one.</div>
+        </sc-if>
         <sc-if value="{{tCaseMode}}" hint-placeholder-val="{{false}}">
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
             <sc-for list="{{tfSetChips}}" as="c" hint-placeholder-count="3">
@@ -279,6 +285,9 @@ select{font-family:inherit}
         <div onPointerDown="{{padDown}}" onPointerUp="{{padUp}}" onPointerCancel="{{padCancel}}" onContextMenu="{{noCtx}}" style="background:{{padBg}};border:1px solid {{padBd}};border-radius:{{padRad}};margin-top:{{padMt}};height:{{padH}};position:{{padPos}};inset:{{padInset}};z-index:{{padZ}};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;touch-action:none">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:{{padTimeFs}};font-weight:600;color:{{timeCo}};font-variant-numeric:tabular-nums">{{timeDisp}}</div>
           <div style="font-size:12.5px;color:var(--tx2);letter-spacing:.06em">{{padHint}}</div>
+          <div style="display:flex;gap:9px;font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600">
+            <sc-for list="{{padSplitSegs}}" as="p" hint-placeholder-count="0"><span style="color:{{p.co}}">{{p.txt}}</span></sc-for>
+          </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <sc-for list="{{tstats}}" as="s" hint-placeholder-count="5">
@@ -288,6 +297,16 @@ select{font-family:inherit}
             </div>
           </sc-for>
         </div>
+        <sc-if value="{{phaseOn}}" hint-placeholder-val="{{false}}">
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <sc-for list="{{phaseStats}}" as="s" hint-placeholder-count="4">
+              <div style="flex:1;min-width:78px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:7px 10px;text-align:center">
+                <div style="font-size:10px;font-weight:700;color:{{s.co}};letter-spacing:.08em">{{s.label}}</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:14.5px;font-weight:600;margin-top:1px">{{s.val}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
         <div style="display:flex;align-items:center;gap:8px;margin-top:16px">
           <select value="{{cur}}" onChange="{{sessionPick}}" style="flex:1;padding:9px 10px;border-radius:11px;border:1px solid var(--ln);background:var(--sf);color:var(--tx);font-size:13.5px">
             <sc-for list="{{sessionOpts}}" as="o" hint-placeholder-count="1"><option value="{{o.i}}">{{o.label}}</option></sc-for>
@@ -301,6 +320,9 @@ select{font-family:inherit}
               <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2);width:28px">{{s.num}}</div>
               <div style="font-family:'IBM Plex Mono',monospace;font-size:15.5px;font-weight:600;color:{{s.co}}">{{s.disp}}</div>
               <div style="font-size:11px;color:var(--tx2);font-weight:600">{{s.caseLbl}}</div>
+              <div style="display:flex;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600">
+                <sc-for list="{{s.phSegs}}" as="p" hint-placeholder-count="0"><span style="color:{{p.co}}">{{p.txt}}</span></sc-for>
+              </div>
               <div style="flex:1"></div>
               <button onClick="{{s.plus2}}" style="padding:4px 9px;border-radius:8px;border:1px solid var(--ln);background:{{s.p2bg}};color:var(--tx2);font-size:11.5px;font-weight:700">+2</button>
               <button onClick="{{s.dnf}}" style="padding:4px 9px;border-radius:8px;border:1px solid var(--ln);background:{{s.dnfbg}};color:var(--tx2);font-size:11.5px;font-weight:700">DNF</button>
@@ -434,6 +456,44 @@ select{font-family:inherit}
               <div style="display:flex;flex-direction:column;gap:6px">
                 <sc-for list="{{drillSlowRows}}" as="w" hint-placeholder-count="3">
                   <button onClick="{{w.open}}" style="display:flex;align-items:center;gap:11px;background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:8px 13px;color:var(--tx);font-size:13.5px;font-weight:600;text-align:left"><span style="width:36px;flex-shrink:0">{{w.svg}}</span>{{w.label}}<span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2)">{{w.count}}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tx2)">{{w.best}}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--warn)">{{w.tps}}</span></button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{phSecOn}}" hint-placeholder-val="{{false}}">
+          <div>
+            <h2 style="font-size:20px;font-weight:800;margin:0 2px 12px">Solve phases</h2>
+            <sc-if value="{{ph4On}}" hint-placeholder-val="{{false}}">
+              <div style="color:var(--tx2);font-size:12px;margin:0 2px 8px">{{ph4Count}}</div>
+              <div style="height:14px;border-radius:99px;background:var(--sf2);overflow:hidden;display:flex">
+                <sc-for list="{{ph4Bar}}" as="b" hint-placeholder-count="4"><div style="background:{{b.co}};width:{{b.w}}%"></div></sc-for>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:8px;padding:0 4px;flex-wrap:wrap">
+                <sc-for list="{{ph4Legend}}" as="l" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)"><span style="width:9px;height:9px;border-radius:99px;background:{{l.co}};display:inline-block"></span>{{l.label}}</div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                <sc-for list="{{ph4Rows}}" as="p" hint-placeholder-count="4">
+                  <div style="flex:1;min-width:100px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:9px 12px;text-align:center">
+                    <div style="font-size:10.5px;font-weight:700;color:{{p.co}};letter-spacing:.1em">{{p.label}}</div>
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin-top:2px">{{p.best}}</div>
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2);margin-top:1px">{{p.mean}}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ph2On}}" hint-placeholder-val="{{false}}">
+              <div style="font-size:12px;font-weight:700;color:var(--tx2);letter-spacing:.08em;margin:16px 2px 4px">LAST LAYER</div>
+              <div style="color:var(--tx2);font-size:12px;margin:0 2px 8px">{{ph2Count}}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{ph2Rows}}" as="p" hint-placeholder-count="2">
+                  <div style="flex:1;min-width:100px;background:var(--sf);border:1px solid var(--ln);border-radius:13px;padding:9px 12px;text-align:center">
+                    <div style="font-size:10.5px;font-weight:700;color:{{p.co}};letter-spacing:.1em">{{p.label}}</div>
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin-top:2px">{{p.best}}</div>
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--tx2);margin-top:1px">{{p.mean}}</div>
+                  </div>
                 </sc-for>
               </div>
             </sc-if>
