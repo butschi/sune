@@ -290,10 +290,19 @@ class Component extends DCLogic {
     const sessions=this.state.sessions.map((x,i)=>i===this.state.cur?{name:x.name,solves:x.solves.concat([sv])}:x);
     this.setState({tstate:'idle',sessions,laps:[]},()=>{ this.persist(); this.newScr(); });
   }
+  // discard the attempt entirely (no solve saved), keep the scramble for a retry
+  cancelSolve(e){
+    if(e&&e.stopPropagation) e.stopPropagation();
+    const s=this.state;
+    if(s.tstate!=='run'&&s.tstate!=='inspect') return;
+    clearInterval(this._run); clearInterval(this._insp); clearTimeout(this._hold);
+    this.setState({tstate:'idle',armed:false,laps:[]});
+  }
   onKey(e,down){
     if(this.state.tab!=='timer'||this.state.modal) return;
     const tag=(e.target.tagName||'').toLowerCase();
     if(tag==='input'||tag==='select'||tag==='textarea') return;
+    if(e.code==='Escape'){ if(down&&!e.repeat) this.cancelSolve(); return; }
     if(e.code!=='Space') return;
     e.preventDefault();
     if(down){ if(!e.repeat&&!this._spaceHeld){ this._spaceHeld=true; this.padDown(); } }
@@ -569,6 +578,9 @@ class Component extends DCLogic {
     // the whole screen is the touch zone. Same element in both layouts, so an
     // in-flight touch (hold-to-arm, tap-to-stop) survives the style switch.
     const zen=s.tstate==='run'||s.tstate==='inspect';
+    // cancel acts on pointerdown (and eats it) so the pad below never sees a
+    // stop/split tap; tucked in the top-right corner, away from smash territory
+    v.zenOn=zen; v.cancelSolve=(e)=>this.cancelSolve(e);
     v.padPos=zen?'fixed':'relative'; v.padInset=zen?'0':'auto'; v.padZ=zen?'200':'auto';
     v.padRad=zen?'0':'18px'; v.padH=zen?'auto':'220px'; v.padMt=zen?'0':'12px';
     v.padTimeFs=zen?'min(20vw,120px)':'64px';
