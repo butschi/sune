@@ -1,4 +1,4 @@
-const CACHE = 'sune-v18';
+const CACHE = 'sune-v19';
 const ASSETS = [
   './',
   'index.html',

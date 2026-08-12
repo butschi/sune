@@ -84,6 +84,7 @@ window.L10N = { de: {
 "New scramble": "Neues Scramble",
 "Show cube preview": "Würfel-Vorschau",
 "tap to stop": "tippen zum Stoppen",
+"Cancel solve (Esc)": "Versuch abbrechen (Esc)",
 "release to start": "loslassen zum Start",
 "inspecting — hold, then release to start": "Inspektion — halten, dann loslassen zum Start",
 "hold, release to start · space on desktop": "halten, loslassen zum Start · Leertaste am Desktop",
